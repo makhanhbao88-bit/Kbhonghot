@@ -11,7 +11,7 @@ from dotenv import load_dotenv
 # Các URL dưới đây là video mẫu công khai; thay bằng video của bạn khi cần.
 VIDEO_DATABASE = {
     "album_03": {
-        "video": "BAACAgUAAxkBAAllAFq5hbJ-VYwpg_u0oJYTVtgu7829AACcSMAArjGMFdgJTzquNLgMz0E",
+        "video": "BAACAgUAAxkBAAIIAAFq5hbJ-VYwpg_u0oJYTVtgu7829AACcSMAArjGMFdgJTzquNLgMz0E",
         "caption": "Album 03",
     },
 }
