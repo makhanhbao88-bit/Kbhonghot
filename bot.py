@@ -65,20 +65,32 @@ def build_bot() -> telebot.TeleBot:
             bot.reply_to(message, "Không tìm thấy video cho mã này.")
             return
 
-        logger.info("Nhận lệnh /start cho mã video %s.", code)
-        video_source = video.get("video", "").strip()
-        local_paths = video.get("paths")
-        if local_paths is None:
-            local_path = video.get("path", "").strip()
-            local_paths = [local_path] if local_path else []
+            logger.info("Nhận lệnh /start cho mã video %s.", code)
+    
+    # Kiểm tra nếu có danh sách nhiều video ("videos")
+    video_list = video.get("videos")
+    if video_list:
+        bot.reply_to(message, f"Đang gửi {len(video_list)} video, quá trình có thể mất một lúc...")
+        for file_id in video_list:
+            bot.send_video(message.chat.id, file_id)
+        return
 
-        if not video_source and not local_paths:
-            bot.reply_to(
-                message,
-                "Video này chưa được cấu hình URL, file_id hoặc đường dẫn tệp. "
-                "Hãy xem hướng dẫn trong README.md.",
-            )
-            return
+    # Xử lý cho video đơn như cũ
+    video_source = video.get("video", "").strip()
+    local_paths = video.get("paths")
+    if local_paths is None:
+        local_path = video.get("path", "").strip()
+        local_paths = [local_path] if local_path else []
+
+    if not video_source and not local_paths:
+        bot.reply_to(
+            message,
+            "Video này chưa được cấu hình URL, file_id hoặc đường dẫn tệp. Hãy xem hướng dẫn trong README.md.",
+        )
+        return
+
+    # Đoạn code gửi video đơn phía dưới giữ nguyên của bạn...
+
 
         try:
             sent_count = 0
