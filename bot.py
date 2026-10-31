@@ -38,6 +38,8 @@ VIDEO_DATABASE = {
         "video": "BAACAgUAAxkBAAllAFq5hbJ-VYwpg_u0oJYTVtgu7829AACcSMAArjGMFdgJTzquNLgMz0E",
         "caption": "Album 03",
     },
+}
+
 PAYLOAD_PATTERN = re.compile(r"^[A-Za-z0-9_-]{1,64}$")
 
 logging.basicConfig(
