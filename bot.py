@@ -8,12 +8,17 @@ from http.server import HTTPServer, BaseHTTPRequestHandler
 import telebot
 from dotenv import load_dotenv
 
-# --- WEB SERVER MINI ĐỂ TRÁNH LỖI TIMED OUT TRÊN RENDER (GÓI FREE) ---
+# --- WEB SERVER MINI (HỖ TRỢ CẢ GET VÀ HEAD ĐỂ UPTIMEROBOT KHÔNG BÁO LỖI) ---
 class HealthCheckHandler(BaseHTTPRequestHandler):
     def do_GET(self):
         self.send_response(200)
         self.end_headers()
-        self.wfile.write(b"Bot is running!")
+        self.wfile.write(b"Bot is running smoothly!")
+        
+    def do_HEAD(self):
+        self.send_response(200)
+        self.end_headers()
+
     def log_message(self, format, *args):
         pass
 
@@ -22,10 +27,11 @@ def start_dummy_server():
     server = HTTPServer(("0.0.0.0", port), HealthCheckHandler)
     server.serve_forever()
 
-# Chạy server ở luồng ngầm
+# Chạy server mini ở luồng ngầm để Render không bị Timeout
 threading.Thread(target=start_dummy_server, daemon=True).start()
-# -------------------------------------------------------------
+# -------------------------------------------------------------------------
 
+# Kho chứa video và album
 VIDEO_DATABASE = {
     "album_03": {
         "video": "BAACAgUAAxkBAAIIAAFq5hbJ-VYwpg_u0oJYTVtgu7829AACcSMAArjGMFdgJTzquNLgMz0E",
@@ -77,7 +83,7 @@ def build_bot() -> telebot.TeleBot:
         
         logger.info("Nhận lệnh /start cho mã video %s.", code)
 
-        # Xử lý gửi album nhiều video
+        # 1. Gửi album nhiều video
         video_list = video.get("videos")
         if video_list:
             bot.reply_to(message, f"Đang gửi {len(video_list)} video, quá trình có thể mất một lúc...")
@@ -85,7 +91,7 @@ def build_bot() -> telebot.TeleBot:
                 bot.send_video(message.chat.id, file_id)
             return
 
-        # Xử lý video đơn (giữ nguyên logic cũ)
+        # 2. Gửi video đơn
         video_source = video.get("video", "").strip()
         if video_source:
             bot.send_video(
@@ -95,6 +101,17 @@ def build_bot() -> telebot.TeleBot:
                 supports_streaming=True,
                 timeout=300,
             )
+
+    @bot.message_handler(content_types=["video"])
+    def handle_video_upload(message: telebot.types.Message) -> None:
+        if message.chat.type != "private" or message.video is None:
+            return
+        bot.reply_to(
+            message,
+            "file_id của video:\n"
+            f"{message.video.file_id}\n\n"
+            "Sao chép mã này vào VIDEO_DATABASE trong bot.py.",
+        )
 
     return bot
 
