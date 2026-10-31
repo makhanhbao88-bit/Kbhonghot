@@ -14,6 +14,13 @@ VIDEO_DATABASE = {
         "video": "BAACAgUAAxkBAAIIAAFq5hbJ-VYwpg_u0oJYTVtgu7829AACcSMAArjGMFdgJTzquNLgMz0E",
         "caption": "Album 03",
     },
+       "album_04": {
+        "video": [ 
+            "BAACAgUAAxkBAAIIXGrmI3hFzpwZ9MvHddA-rq06PBgZAAKtIwACuMYwV7KGfsr2GjQnPQQ",
+            "BAACAgUAAxkBAAIIW2rmI3hySozeLjU-ZGTdF4AVH0s0AAKsIwACuMYwV0b-FmwP6uvCPQQ",
+            "BAACAgUAAxkBAAIIXWrmI3hqkmElXRFmRy5dQM6nUnwPAAKuIwACuMYwVxVYlCWeLGOdPQQ",
+        ],
+        "caption": "Album 04",
 }
 
 PAYLOAD_PATTERN = re.compile(r"^[A-Za-z0-9_-]{1,64}$")
