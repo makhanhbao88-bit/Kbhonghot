@@ -64,8 +64,16 @@ def build_bot() -> telebot.TeleBot:
         if video is None:
             bot.reply_to(message, "Không tìm thấy video cho mã này.")
             return
+                    logger.info("Nhận lệnh /start cho mã video %s.", code)
 
-            logger.info("Nhận lệnh /start cho mã video %s.", code)
+        video_list = video.get("videos")
+        if video_list:
+            bot.reply_to(message, f"Đang gửi {len(video_list)} video, quá trình có thể mất một lúc...")
+            for file_id in video_list:
+                bot.send_video(message.chat.id, file_id)
+            return
+
+
     
     # Kiểm tra nếu có danh sách nhiều video ("videos")
     video_list = video.get("videos")
