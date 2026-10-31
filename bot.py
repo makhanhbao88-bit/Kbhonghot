@@ -2,13 +2,30 @@ import logging
 import os
 import re
 from pathlib import Path
+import threading
+from http.server import HTTPServer, BaseHTTPRequestHandler
 
 import telebot
 from dotenv import load_dotenv
 
+# --- WEB SERVER MINI ĐỂ TRÁNH LỖI TIMED OUT TRÊN RENDER (GÓI FREE) ---
+class HealthCheckHandler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        self.send_response(200)
+        self.end_headers()
+        self.wfile.write(b"Bot is running!")
+    def log_message(self, format, *args):
+        pass
 
-# Giá trị "video" có thể là URL HTTPS trỏ thẳng tới MP4 hoặc Telegram file_id.
-# Các URL dưới đây là video mẫu công khai; thay bằng video của bạn khi cần.
+def start_dummy_server():
+    port = int(os.environ.get("PORT", 10000))
+    server = HTTPServer(("0.0.0.0", port), HealthCheckHandler)
+    server.serve_forever()
+
+# Chạy server ở luồng ngầm
+threading.Thread(target=start_dummy_server, daemon=True).start()
+# -------------------------------------------------------------
+
 VIDEO_DATABASE = {
     "album_03": {
         "video": "BAACAgUAAxkBAAIIAAFq5hbJ-VYwpg_u0oJYTVtgu7829AACcSMAArjGMFdgJTzquNLgMz0E",
@@ -37,10 +54,7 @@ def build_bot() -> telebot.TeleBot:
     load_dotenv()
     token = os.getenv("BOT_TOKEN", "").strip()
     if not token:
-        raise RuntimeError(
-            "Chưa cấu hình BOT_TOKEN. Hãy thêm token trong Replit Secrets "
-            "hoặc trong file .env khi chạy trên máy cá nhân."
-        )
+        raise RuntimeError("Chưa cấu hình BOT_TOKEN.")
 
     bot = telebot.TeleBot(token)
 
@@ -48,11 +62,7 @@ def build_bot() -> telebot.TeleBot:
     def handle_start(message: telebot.types.Message) -> None:
         parts = (message.text or "").strip().split(maxsplit=1)
         if len(parts) == 1:
-            bot.reply_to(
-                message,
-                "Xin chào! Hãy mở link dạng "
-                "https://t.me/<ten_bot>?start=album_01 để nhận video.",
-            )
+            bot.reply_to(message, "Xin chào! Hãy mở đúng link chứa mã video.")
             return
 
         code = parts[1].strip()
@@ -67,7 +77,7 @@ def build_bot() -> telebot.TeleBot:
         
         logger.info("Nhận lệnh /start cho mã video %s.", code)
 
-        # 1. Kiểm tra nếu có danh sách nhiều video ("videos") -> Gửi dạng album
+        # Xử lý gửi album nhiều video
         video_list = video.get("videos")
         if video_list:
             bot.reply_to(message, f"Đang gửi {len(video_list)} video, quá trình có thể mất một lúc...")
@@ -75,147 +85,24 @@ def build_bot() -> telebot.TeleBot:
                 bot.send_video(message.chat.id, file_id)
             return
 
-        # 2. Xử lý cho video đơn hoặc local path như cũ
+        # Xử lý video đơn (giữ nguyên logic cũ)
         video_source = video.get("video", "").strip()
-        local_paths = video.get("paths")
-
-        if local_paths is None:
-            local_path = video.get("path", "").strip()
-            local_paths = [local_path] if local_path else []
-
-        if not video_source and not local_paths:
-            bot.reply_to(
-                message,
-                "Video này chưa được cấu hình URL, file_id hoặc đường dẫn tệp. Hãy xem hướng dẫn trong README.md.",
+        if video_source:
+            bot.send_video(
+                chat_id=message.chat.id,
+                video=video_source,
+                caption=video.get("caption") or None,
+                supports_streaming=True,
+                timeout=300,
             )
-            return
-
-        try:
-            sent_count = 0
-            if local_paths:
-                if len(local_paths) > 1:
-                    bot.reply_to(
-                        message,
-                        f"Đang gửi {len(local_paths)} video; quá trình có thể mất một lúc.",
-                    )
-                for index, local_path in enumerate(local_paths, start=1):
-                    logger.info(
-                        "Đang gửi video %d/%d cho mã %s.",
-                        index,
-                        len(local_paths),
-                        code,
-                    )
-                    media_path = (
-                        Path(__file__).resolve().parent / local_path
-                    ).resolve()
-                    caption = video.get("caption") or None
-                    if caption and len(local_paths) > 1:
-                        caption = f"{caption} · video {index}/{len(local_paths)}"
-                    with media_path.open("rb") as video_file:
-                        bot.send_video(
-                            chat_id=message.chat.id,
-                            video=video_file,
-                            caption=caption,
-                            supports_streaming=True,
-                            timeout=300,
-                        )
-                    sent_count += 1
-                logger.info("Đã gửi %d video cho mã %s.", sent_count, code)
-            else:
-                bot.send_video(
-                    chat_id=message.chat.id,
-                    video=video_source,
-                    caption=video.get("caption") or None,
-                    supports_streaming=True,
-                    timeout=300,
-                )
-        except Exception as error:
-            error_code = getattr(error, "error_code", None)
-            error_description = getattr(error, "description", None)
-            if error_description:
-                safe_description = str(error_description).replace(
-                    token, "[token ẩn]"
-                )
-                safe_description = re.sub(
-                    r"https?://\S+", "[URL ẩn]", safe_description
-                )
-                safe_description = safe_description[:250]
-            else:
-                safe_description = "không có"
-            logger.error(
-                "Không gửi được video (loại lỗi: %s, mã Telegram: %s, "
-                "chi tiết: %s).",
-                type(error).__name__,
-                error_code if error_code is not None else "không có",
-                safe_description,
-            )
-            if sent_count and sent_count < len(local_paths):
-                bot.reply_to(
-                    message,
-                    f"Đã gửi {sent_count}/{len(local_paths)} video; các video còn "
-                    "lại chưa gửi được. Hãy thử mở link lại.",
-                )
-                return
-            bot.reply_to(
-                message,
-                "Bot chưa gửi được video này. Hãy kiểm tra nguồn video và thử lại.",
-            )
-
-    @bot.message_handler(content_types=["video"])
-    def handle_video_upload(message: telebot.types.Message) -> None:
-        # Chỉ trả file_id trong chat riêng, không đăng nó vào nhóm.
-        if message.chat.type != "private" or message.video is None:
-            return
-        bot.reply_to(
-            message,
-            "file_id của video:\n"
-            f"{message.video.file_id}\n\n"
-            "Sao chép mã này vào VIDEO_DATABASE trong bot.py.",
-        )
 
     return bot
 
 
 def main() -> None:
-    try:
-        bot = build_bot()
-    except RuntimeError as error:
-        raise SystemExit(str(error)) from None
-
-    try:
-        account = bot.get_me()
-    except telebot.apihelper.ApiTelegramException as error:
-        error_code = getattr(error, "error_code", "unknown")
-        logger.error(
-            "Telegram từ chối yêu cầu xác thực (mã lỗi: %s). "
-            "Hãy kiểm tra BOT_TOKEN trong Replit Secrets.",
-            error_code,
-        )
-        raise SystemExit(1) from None
-    except Exception as error:
-        logger.error(
-            "Không kết nối được Telegram khi xác thực (loại lỗi: %s).",
-            type(error).__name__,
-        )
-        raise SystemExit(1) from None
-
-    logger.info("Đã kết nối Telegram với bot @%s.", account.username)
-    try:
-        bot.delete_webhook(drop_pending_updates=False)
-    except Exception as error:
-        logger.error(
-            "Không thể xóa webhook để chuyển sang polling "
-            "(loại lỗi: %s).",
-            type(error).__name__,
-        )
-        raise SystemExit(1) from None
-
-    logger.info("Đã chuyển bot sang polling; giữ các update đang chờ.")
-    logger.info("Bot đang chạy. Nhấn Ctrl+C để dừng.")
-    try:
-        bot.infinity_polling(skip_pending=False)
-    except KeyboardInterrupt:
-        logger.info("Đã dừng bot.")
+    bot = build_bot()
+    logger.info("Bot đang chạy ở chế độ polling...")
+    bot.infinity_polling(skip_pending=False)
 
 
 if __name__ == "__main__":
