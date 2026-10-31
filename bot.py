@@ -64,7 +64,7 @@ def build_bot() -> telebot.TeleBot:
         if video is None:
             bot.reply_to(message, "Không tìm thấy video cho mã này.")
             return
-                    logger.info("Nhận lệnh /start cho mã video %s.", code)
+        logger.info("Nhận lệnh /start cho mã video %s.", code)
 
         video_list = video.get("videos")
         if video_list:
