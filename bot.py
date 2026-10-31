@@ -21,6 +21,7 @@ VIDEO_DATABASE = {
             "BAACAgUAAxkBAAIIXWrmI3hqkmElXRFmRy5dQM6nUnwPAAKuIwACuMYwVxVYlCWeLGOdPQQ",
         ],
         "caption": "Album 04",
+       },
 }
 
 PAYLOAD_PATTERN = re.compile(r"^[A-Za-z0-9_-]{1,64}$")
