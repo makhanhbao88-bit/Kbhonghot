@@ -67,7 +67,7 @@ def build_bot() -> telebot.TeleBot:
 
             logger.info("Nhận lệnh /start cho mã video %s.", code)
     
-    # Kiểm tra nếu có danh sách nhiều video ("videos")
+        # Kiểm tra nếu có danh sách nhiều video ("videos")
     video_list = video.get("videos")
     if video_list:
         bot.reply_to(message, f"Đang gửi {len(video_list)} video, quá trình có thể mất một lúc...")
@@ -78,6 +78,7 @@ def build_bot() -> telebot.TeleBot:
     # Xử lý cho video đơn như cũ
     video_source = video.get("video", "").strip()
     local_paths = video.get("paths")
+
     if local_paths is None:
         local_path = video.get("path", "").strip()
         local_paths = [local_path] if local_path else []
