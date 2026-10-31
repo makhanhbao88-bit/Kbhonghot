@@ -23,14 +23,14 @@ VIDEO_DATABASE = {
         "caption": "Video mẫu: Big Buck Bunny",
     },
     "album_01": {
-        "path": "../attached_assets/GTok-5ABBE918-3444-49B5-A644-F3C6F8CF0670_1793356313012.mp4",
+        "path": "attached_assets/GTok-5ABBE918-3444-49B5-A644-F3C6F8CF0670_1793356313012.mp4",
         "caption": "Album 01",
     },
     "album_02": {
         "paths": [
-            "../attached_assets/IMG_6443_1793361727906.MP4",
-            "../attached_assets/IMG_6444_1793361746455.MP4",
-            "../attached_assets/IMG_6445_1793361888871.MP4",
+            "attached_assets/IMG_6443_1793361727906.MP4",
+            "attached_assets/IMG_6444_1793361746455.MP4",
+            "attached_assets/IMG_6445_1793361888871.MP4",
         ],
         "caption": "Album 02",
     },
