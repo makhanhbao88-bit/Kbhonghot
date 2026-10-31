@@ -14,14 +14,14 @@ VIDEO_DATABASE = {
         "video": "BAACAgUAAxkBAAIIAAFq5hbJ-VYwpg_u0oJYTVtgu7829AACcSMAArjGMFdgJTzquNLgMz0E",
         "caption": "Album 03",
     },
-       "album_04": {
+    "album_04": {
         "videos": [ 
             "BAACAgUAAxkBAAIIXGrmI3hFzpwZ9MvHddA-rq06PBgZAAKtIwACuMYwV7KGfsr2GjQnPQQ",
             "BAACAgUAAxkBAAIIW2rmI3hySozeLjU-ZGTdF4AVH0s0AAKsIwACuMYwV0b-FmwP6uvCPQQ",
             "BAACAgUAAxkBAAIIXWrmI3hqkmElXRFmRy5dQM6nUnwPAAKuIwACuMYwVxVYlCWeLGOdPQQ",
         ],
         "caption": "Album 04",
-       },
+    },
 }
 
 PAYLOAD_PATTERN = re.compile(r"^[A-Za-z0-9_-]{1,64}$")
@@ -64,8 +64,10 @@ def build_bot() -> telebot.TeleBot:
         if video is None:
             bot.reply_to(message, "Không tìm thấy video cho mã này.")
             return
+        
         logger.info("Nhận lệnh /start cho mã video %s.", code)
 
+        # 1. Kiểm tra nếu có danh sách nhiều video ("videos") -> Gửi dạng album
         video_list = video.get("videos")
         if video_list:
             bot.reply_to(message, f"Đang gửi {len(video_list)} video, quá trình có thể mất một lúc...")
@@ -73,34 +75,20 @@ def build_bot() -> telebot.TeleBot:
                 bot.send_video(message.chat.id, file_id)
             return
 
+        # 2. Xử lý cho video đơn hoặc local path như cũ
+        video_source = video.get("video", "").strip()
+        local_paths = video.get("paths")
 
-    
-    # Kiểm tra nếu có danh sách nhiều video ("videos")
-    video_list = video.get("videos")
-    if video_list:
-        bot.reply_to(message, f"Đang gửi {len(video_list)} video, quá trình có thể mất một lúc...")
-        for file_id in video_list:
-            bot.send_video(message.chat.id, file_id)
-        return
+        if local_paths is None:
+            local_path = video.get("path", "").strip()
+            local_paths = [local_path] if local_path else []
 
-
-    # Xử lý cho video đơn như cũ
-    video_source = video.get("video", "").strip()
-    local_paths = video.get("paths")
-
-    if local_paths is None:
-        local_path = video.get("path", "").strip()
-        local_paths = [local_path] if local_path else []
-
-    if not video_source and not local_paths:
-        bot.reply_to(
-            message,
-            "Video này chưa được cấu hình URL, file_id hoặc đường dẫn tệp. Hãy xem hướng dẫn trong README.md.",
-        )
-        return
-
-    # Đoạn code gửi video đơn phía dưới giữ nguyên của bạn...
-
+        if not video_source and not local_paths:
+            bot.reply_to(
+                message,
+                "Video này chưa được cấu hình URL, file_id hoặc đường dẫn tệp. Hãy xem hướng dẫn trong README.md.",
+            )
+            return
 
         try:
             sent_count = 0
