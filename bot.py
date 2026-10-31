@@ -10,30 +10,6 @@ from dotenv import load_dotenv
 # Giá trị "video" có thể là URL HTTPS trỏ thẳng tới MP4 hoặc Telegram file_id.
 # Các URL dưới đây là video mẫu công khai; thay bằng video của bạn khi cần.
 VIDEO_DATABASE = {
-    "flower_demo": {
-        "video": "https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4",
-        "caption": "Video mẫu: hoa",
-    },
-    "sintel_demo": {
-        "video": "https://media.w3.org/2010/05/sintel/trailer.mp4",
-        "caption": "Video mẫu: Sintel",
-    },
-    "bunny_demo": {
-        "video": "https://media.w3.org/2010/05/bunny/trailer.mp4",
-        "caption": "Video mẫu: Big Buck Bunny",
-    },
-    "album_01": {
-        "path": "attached_assets/GTok-5ABBE918-3444-49B5-A644-F3C6F8CF0670_1793356313012.mp4",
-        "caption": "Album 01",
-    },
-    "album_02": {
-        "paths": [
-            "attached_assets/IMG_6443_1793361727906.MP4",
-            "attached_assets/IMG_6444_1793361746455.MP4",
-            "attached_assets/IMG_6445_1793361888871.MP4",
-        ],
-        "caption": "Album 02",
-    },
     "album_03": {
         "video": "BAACAgUAAxkBAAllAFq5hbJ-VYwpg_u0oJYTVtgu7829AACcSMAArjGMFdgJTzquNLgMz0E",
         "caption": "Album 03",
