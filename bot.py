@@ -8,7 +8,7 @@ from http.server import HTTPServer, BaseHTTPRequestHandler
 import telebot
 from dotenv import load_dotenv
 
-# --- WEB SERVER MINI (HỖ TRỢ CẢ GET VÀ HEAD ĐỂ UPTIMEROBOT KHÔNG BÁO LỖI) ---
+# --- WEB SERVER MINI (GIÚP RENDER KHÔNG BỊ NGỦ ĐÔNG) ---
 class HealthCheckHandler(BaseHTTPRequestHandler):
     def do_GET(self):
         self.send_response(200)
@@ -27,23 +27,18 @@ def start_dummy_server():
     server = HTTPServer(("0.0.0.0", port), HealthCheckHandler)
     server.serve_forever()
 
-# Chạy server mini ở luồng ngầm để Render không bị Timeout
 threading.Thread(target=start_dummy_server, daemon=True).start()
-# -------------------------------------------------------------------------
+# ---------------------------------------------------------
 
-# Kho chứa video và album
+# KHO CHỨA VIDEO VÀ ALBUM
 VIDEO_DATABASE = {
     "album_03": {
         "video": "BAACAgUAAxkBAAIIAAFq5hbJ-VYwpg_u0oJYTVtgu7829AACcSMAArjGMFdgJTzquNLgMz0E",
         "caption": "Album 03",
     },
     "album_05": {
-        "video": "BAACAgUAAxkBAAIMvmrnORVx_B0D08EDt_Z6BIqdB4ffAALhQgACuMY4V4F1_7d5CiSsPQQ",
+        "video": "BAACAgUAAxkBAAIMvmrnORVx_B0D08EDt_2",
         "caption": "Album 05",
-    },
-    "album_07": {
-        "video": "BAACAgUAAxkBAAIS5GrolFZHvsw8vkaKS6Hbp5-jffmpAAJJJQACB6pBV612sSs-zcD4PQQ",
-        "caption": "Album 07",
     },
     "album_04": {
         "videos": [ 
@@ -54,11 +49,12 @@ VIDEO_DATABASE = {
         "caption": "Album 04",
     },
     "album_06": {
-        "videos": [ 
+        "videos": [
             "BAACAgUAAxkBAAISyWrokQrlx55fsluaJopGMtVXwCJ5AAIqIgACM3MoV091BuEUEX8gPQQ",
             "BAACAgUAAxkBAAISxmrokPyK3NTTMP_ZNPcbAAHM3HBqawACKSIAAjNzKFfqG2ggLtgCvj0E",
         ],
         "caption": "Album 06",
+    },
 }
 
 PAYLOAD_PATTERN = re.compile(r"^[A-Za-z0-9_-]{1,64}$")
