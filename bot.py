@@ -49,6 +49,12 @@ VIDEO_DATABASE = {
         ],
         "caption": "Album 04",
     },
+    "album_06": {
+        "videos": [ 
+            "BAACAgUAAxkBAAISyWrokQrlx55fsluaJopGMtVXwCJ5AAIqIgACM3MoV091BuEUEX8gPQQ",
+            "BAACAgUAAxkBAAISxmrokPyK3NTTMP_ZNPcbAAHM3HBqawACKSIAAjNzKFfqG2ggLtgCvj0E",
+        ],
+        "caption": "Album 06",
 }
 
 PAYLOAD_PATTERN = re.compile(r"^[A-Za-z0-9_-]{1,64}$")
