@@ -41,6 +41,10 @@ VIDEO_DATABASE = {
         "video": "BAACAgUAAxkBAAIMvmrnORVx_B0D08EDt_Z6BIqdB4ffAALhQgACuMY4V4F1_7d5CiSsPQQ",
         "caption": "Album 05",
     },
+    "album_07": {
+        "video": "BAACAgUAAxkBAAIS5GrolFZHvsw8vkaKS6Hbp5-jffmpAAJJJQACB6pBV612sSs-zcD4PQQ",
+        "caption": "Album 07",
+    },
     "album_04": {
         "videos": [ 
             "BAACAgUAAxkBAAIIXGrmI3hFzpwZ9MvHddA-rq06PBgZAAKtIwACuMYwV7KGfsr2GjQnPQQ",
