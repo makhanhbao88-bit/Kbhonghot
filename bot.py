@@ -1,6 +1,8 @@
 import logging
 import os
 import re
+import queue
+import time
 from pathlib import Path
 import threading
 from http.server import HTTPServer, BaseHTTPRequestHandler
@@ -41,20 +43,51 @@ logging.basicConfig(
 )
 logger = logging.getLogger("telegram-video-bot")
 
+# Hàng đợi lưu trữ video chờ gửi để chống lỗi 429
+video_queue = queue.Queue()
+bot_instance = None
+
+def worker():
+    """Luồng ngầm tự động lấy video trong hàng đợi ra gửi từ từ"""
+    while True:
+        item = video_queue.get()
+        if item is None:
+            break
+        message, file_id = item
+        try:
+            bot_instance.send_video(
+                chat_id=VIP_CHAT_ID,
+                video=file_id,
+                caption=None, 
+                supports_streaming=True,
+                timeout=300,
+            )
+            bot_instance.reply_to(message, "✅ Đã đẩy video sạch lên nhóm VIP!")
+        except Exception as e:
+            bot_instance.reply_to(message, f"❌ Lỗi khi gửi: {e}")
+        finally:
+            video_queue.task_done()
+            time.sleep(1.5) # Nghỉ 1.5 giây giữa các video để Telegram không phạt
+
+# Chạy worker ngầm
+threading.Thread(target=worker, daemon=True).start()
+
 
 def build_bot() -> telebot.TeleBot:
+    global bot_instance
     load_dotenv()
     token = os.getenv("BOT_TOKEN", "").strip()
     if not token:
         raise RuntimeError("Chưa cấu hình BOT_TOKEN.")
 
     bot = telebot.TeleBot(token)
+    bot_instance = bot
 
     @bot.message_handler(commands=["start"])
     def handle_start(message: telebot.types.Message) -> None:
-        bot.reply_to(message, "Bot tự động chuyển video sạch lên nhóm VIP đang hoạt động.")
+        bot.reply_to(message, "Bot tự động chuyển video sạch đang chạy ở chế độ Hàng đợi thông minh.")
 
-    # TỰ ĐỘNG BẮT VIDEO CHUYỂN TIẾP VÀ ĐẨY THẲNG LÊN NHÓM VIP (KHÔNG KÈM CHỮ)
+    # BẮT VIDEO VÀ ĐẨY VÀO HÀNG ĐỢI
     @bot.message_handler(content_types=["video", "document", "animation"])
     def handle_video_auto_forward(message: telebot.types.Message) -> None:
         if message.chat.type != "private":
@@ -72,25 +105,16 @@ def build_bot() -> telebot.TeleBot:
             bot.reply_to(message, "Không tìm thấy file video hợp lệ.")
             return
 
-        try:
-            # Gửi thẳng vào nhóm VIP, ép caption=None để xóa sạch mọi chữ đi cho gọn
-            bot.send_video(
-                chat_id=VIP_CHAT_ID,
-                video=file_id,
-                caption=None, 
-                supports_streaming=True,
-                timeout=300,
-            )
-            bot.reply_to(message, "✅ Đã đẩy video sạch không kèm chữ lên nhóm VIP!")
-        except Exception as e:
-            bot.reply_to(message, f"❌ Lỗi: {e}")
+        # Cho video vào hàng đợi, bot sẽ tự xử lý lần lượt không lo quá tải
+        video_queue.put((message, file_id))
+        bot.reply_to(message, "⏳ Đã xếp vào hàng chờ gửi lên nhóm VIP...")
 
     return bot
 
 
 def main() -> None:
     bot = build_bot()
-    logger.info("Bot đang chạy ở chế độ polling tự động đẩy video...")
+    logger.info("Bot đang chạy ở chế độ polling với hàng đợi chống tràn...")
     bot.infinity_polling(skip_pending=False)
 
 
