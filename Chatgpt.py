@@ -3,7 +3,7 @@ import os
 import threading
 from http.server import BaseHTTPRequestHandler, HTTPServer
 import time
-import google.generativeai as genai
+import requests
 import telebot
 
 # --- WEB SERVER MINI (CHỐNG NGỦ ĐÔNG TRÊN RENDER) ---
@@ -35,10 +35,6 @@ threading.Thread(target=start_dummy_server, daemon=True).start()
 TELEGRAM_BOT_TOKEN = "9015116230:AAFdK09k3vOv9tuccDRBXaANCb4czFozZx8"
 GEMINI_API_KEY = "AQ.Ab8RN6LD6GGVhuR00Rz9Nnu8xX6xDNoJr1kHNV3Ff9qD7gt6WQ"
 
-# Cấu hình Google Gemini chuẩn cho dự án Google Cloud
-genai.configure(api_key=GEMINI_API_KEY)
-model = genai.GenerativeModel("gemini-pro")
-
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s %(levelname)s %(name)s: %(message)s",
@@ -47,11 +43,36 @@ logger = logging.getLogger("telegram-ai-bot")
 
 
 def ask_gemini(prompt: str) -> str:
+  # Gọi trực tiếp qua REST API với model gemini-1.5-flash
+  url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent"
+  headers = {
+      "Authorization": f"Bearer {GEMINI_API_KEY}",
+      "Content-Type": "application/json"
+  }
+  data = {
+      "contents": [{
+          "parts": [{
+              "text": (
+                  "Bạn là một trợ lý AI thông minh, thân thiện và hữu ích."
+                  f" Câu hỏi của người dùng: {prompt}"
+              )
+          }]
+      }]
+  }
+
   try:
-    response = model.generate_content(prompt)
-    return response.text
+    response = requests.post(url, headers=headers, json=data, timeout=30)
+    res_json = response.json()
+    
+    if "candidates" in res_json and len(res_json["candidates"]) > 0:
+      return res_json["candidates"][0]["content"]["parts"][0]["text"]
+    elif "error" in res_json:
+      logger.error(f"Google trả về lỗi: {res_json['error']}")
+      return "Xin lỗi, hệ thống AI đang gặp sự cố nhỏ."
+      
+    return "Không nhận được phản hồi từ AI."
   except Exception as e:
-    logger.error(f"Lỗi gọi Gemini API: {e}")
+    logger.error(f"Lỗi kết nối tới Gemini API: {e}")
     return ""
 
 
@@ -93,12 +114,15 @@ def build_bot() -> telebot.TeleBot:
 
 def main() -> None:
   bot = build_bot()
-  logger.info("AI Gemini Bot đang chạy ngầm mượt mà...")
   
+  # Ép xóa sạch webhook cũ trước khi khởi động polling để trị dứt điểm lỗi 409 Conflict
   try:
     bot.remove_webhook()
+    time.sleep(1)
   except Exception:
     pass
+
+  logger.info("AI Gemini Bot đang chạy ngầm mượt mà...")
 
   while True:
     try:
