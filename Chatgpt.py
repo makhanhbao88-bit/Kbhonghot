@@ -2,8 +2,8 @@ import logging
 import os
 import threading
 from http.server import BaseHTTPRequestHandler, HTTPServer
+import requests
 import telebot
-from openai import OpenAI
 
 # --- WEB SERVER MINI (CHỐNG NGỦ ĐÔNG TRÊN RENDER) ---
 class HealthCheckHandler(BaseHTTPRequestHandler):
@@ -11,7 +11,7 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
   def do_GET(self):
     self.send_response(200)
     self.end_headers()
-    self.wfile.write(b"AI ChatGPT Bot is running smoothly!")
+    self.wfile.write(b"AI Gemini Bot is running smoothly!")
 
   def do_HEAD(self):
     self.send_response(200)
@@ -30,19 +30,41 @@ def start_dummy_server():
 threading.Thread(target=start_dummy_server, daemon=True).start()
 # ---------------------------------------------------------
 
-# TELEGRAM TOKEN ĐỂ THẲNG VÀO ĐÂY CHO CHẮC ĂN (KHÔNG SỢ LỖI)
+# TELEGRAM TOKEN
 TELEGRAM_BOT_TOKEN = "9015116230:AAFdK09k3vOv9tuccDRBXaANCb4czFozZx8"
 
-# OPENAI KEY LẤY AN TOÀN TỪ RENDER ĐỂ KHÔNG BỊ KHÓA
-OPENAI_API_KEY = os.environ.get("AI_KEY")
-
-client = OpenAI(api_key=OPENAI_API_KEY)
+# LẤY GEMINI API KEY AN TOÀN TỪ RENDER
+GEMINI_API_KEY = os.environ.get("GEMINI_KEY")
 
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s %(levelname)s %(name)s: %(message)s",
 )
 logger = logging.getLogger("telegram-ai-bot")
+
+
+def ask_gemini(prompt: str) -> str:
+  url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={GEMINI_API_KEY}"
+  headers = {"Content-Type": "application/json"}
+  data = {
+      "contents": [{
+          "parts": [{
+              "text": (
+                  "Bạn là một trợ lý AI thông minh, thân thiện và hữu ích."
+                  f" Câu hỏi của người dùng: {prompt}"
+              )
+          }]
+      }]
+  }
+
+  try:
+    response = requests.post(url, headers=headers, json=data, timeout=30)
+    res_json = response.json()
+    # Lấy câu trả lời từ cấu trúc JSON của Gemini
+    return res_json["candidates"][0]["content"]["parts"][0]["text"]
+  except Exception as e:
+    logger.error(f"Lỗi gọi Gemini API: {e}")
+    return ""
 
 
 def build_bot() -> telebot.TeleBot:
@@ -57,8 +79,8 @@ def build_bot() -> telebot.TeleBot:
   def handle_start(message: telebot.types.Message) -> None:
     bot.reply_to(
         message,
-        "Xin chào! Tôi là trợ lý AI phiên bản cao cấp tích hợp GPT-4o. Bạn"
-        " muốn hỏi gì hoặc cần tôi giúp gì nào?",
+        "Xin chào! Tôi là trợ lý AI thông minh tích hợp Google Gemini miễn"
+        " phí. Bạn muốn hỏi gì nào?",
     )
 
   @bot.message_handler(func=lambda message: True)
@@ -73,37 +95,22 @@ def build_bot() -> telebot.TeleBot:
     try:
       bot.send_chat_action(message.chat.id, "typing")
 
-      response = client.chat.completions.create(
-          model="gpt-4o",
-          messages=[
-              {
-                  "role": "system",
-                  "content": (
-                      "Bạn là một trợ lý AI thông minh, thân thiện và hữu ích."
-                  ),
-              },
-              {"role": "user", "content": user_text},
-          ],
-          temperature=0.7,
-          max_tokens=1500,
-      )
+      ai_reply = ask_gemini(user_text)
+      if not ai_reply:
+        ai_reply = "Xin lỗi, hiện tại hệ thống AI đang bận. Bạn thử lại sau nhé!"
 
-      ai_reply = response.choices[0].message.content
       bot.reply_to(message, ai_reply, parse_mode="Markdown")
 
     except Exception as e:
-      logger.error(f"Lỗi khi gọi OpenAI API: {e}")
-      bot.reply_to(
-          message,
-          "Xin lỗi, hiện tại hệ thống AI đang bận. Bạn thử lại sau nhé!",
-      )
+      logger.error(f"Lỗi bot: {e}")
+      bot.reply_to(message, "Đã có lỗi xảy ra, bạn thử lại sau nhé!")
 
   return bot
 
 
 def main() -> None:
   bot = build_bot()
-  logger.info("AI ChatGPT Bot đang chạy ngầm mượt mà...")
+  logger.info("AI Gemini Bot đang chạy ngầm mượt mà...")
   bot.infinity_polling(skip_pending=True)
 
 
