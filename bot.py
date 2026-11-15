@@ -30,32 +30,8 @@ def start_dummy_server():
 threading.Thread(target=start_dummy_server, daemon=True).start()
 # ---------------------------------------------------------
 
-# KHO CHỨA VIDEO VÀ ALBUM
-VIDEO_DATABASE = {
-    "album_03": {
-        "video": "BAACAgUAAxkBAAIIAAFq5hbJ-VYwpg_u0oJYTVtgu7829AACcSMAArjGMFdgJTzquNLgMz0E",
-        "caption": "Album 03",
-    },
-    "album_05": {
-        "video": "BAACAgUAAxkBAAIMvmrnORVx_B0D08EDt_2",
-        "caption": "Album 05",
-    },
-    "album_04": {
-        "videos": [ 
-            "BAACAgUAAxkBAAIIXGrmI3hFzpwZ9MvHddA-rq06PBgZAAKtIwACuMYwV7KGfsr2GjQnPQQ",
-            "BAACAgUAAxkBAAIIW2rmI3hySozeLjU-ZGTdF4AVH0s0AAKsIwACuMYwV0b-FmwP6uvCPQQ",
-            "BAACAgUAAxkBAAIIXWrmI3hqkmElXRFmRy5dQM6nUnwPAAKuIwACuMYwVxVYlCWeLGOdPQQ",
-        ],
-        "caption": "Album 04",
-    },
-    "album_06": {
-        "videos": [
-            "BAACAgUAAxkBAAISyWrokQrlx55fsluaJopGMtVXwCJ5AAIqIgACM3MoV091BuEUEX8gPQQ",
-            "BAACAgUAAxkBAAISxmrokPyK3NTTMP_ZNPcbAAHM3HBqawACKSIAAjNzKFfqG2ggLtgCvj0E",
-        ],
-        "caption": "Album 06",
-    },
-}
+# ID NHÓM VIP ĐÃ ĐƯỢC THIẾT LẬP SẴN
+VIP_CHAT_ID = -1003910292149 
 
 PAYLOAD_PATTERN = re.compile(r"^[A-Za-z0-9_-]{1,64}$")
 
@@ -76,45 +52,11 @@ def build_bot() -> telebot.TeleBot:
 
     @bot.message_handler(commands=["start"])
     def handle_start(message: telebot.types.Message) -> None:
-        parts = (message.text or "").strip().split(maxsplit=1)
-        if len(parts) == 1:
-            bot.reply_to(message, "Xin chào! Hãy mở đúng link chứa mã video.")
-            return
+        bot.reply_to(message, "Bot tự động chuyển video sạch lên nhóm VIP đang hoạt động.")
 
-        code = parts[1].strip()
-        if not PAYLOAD_PATTERN.fullmatch(code):
-            bot.reply_to(message, "Mã video không hợp lệ.")
-            return
-
-        video = VIDEO_DATABASE.get(code)
-        if video is None:
-            bot.reply_to(message, "Không tìm thấy video cho mã này.")
-            return
-        
-        logger.info("Nhận lệnh /start cho mã video %s.", code)
-
-        # 1. Gửi album nhiều video
-        video_list = video.get("videos")
-        if video_list:
-            bot.reply_to(message, f"Đang gửi {len(video_list)} video, quá trình có thể mất một lúc...")
-            for file_id in video_list:
-                bot.send_video(message.chat.id, file_id)
-            return
-
-        # 2. Gửi video đơn
-        video_source = video.get("video", "").strip()
-        if video_source:
-            bot.send_video(
-                chat_id=message.chat.id,
-                video=video_source,
-                caption=video.get("caption") or None,
-                supports_streaming=True,
-                timeout=300,
-            )
-
-    # Đã mở rộng để bắt cả video thường, video nén (document) và mọi loại file media chuyển tiếp
+    # TỰ ĐỘNG BẮT VIDEO CHUYỂN TIẾP VÀ ĐẨY THẲNG LÊN NHÓM VIP
     @bot.message_handler(content_types=["video", "document", "animation"])
-    def handle_video_upload(message: telebot.types.Message) -> None:
+    def handle_video_auto_forward(message: telebot.types.Message) -> None:
         if message.chat.type != "private":
             return
             
@@ -126,23 +68,29 @@ def build_bot() -> telebot.TeleBot:
         elif message.animation:
             file_id = message.animation.file_id
 
-        if file_id:
-            bot.reply_to(
-                message,
-                "✅ Đã lấy được mã `file_id` (Sạch 100% không dính nguồn):\n\n"
-                f"`{file_id}`\n\n"
-                "Sao chép mã này cho vào file `bot.py` nhé!",
-                parse_mode="Markdown"
+        if not file_id:
+            bot.reply_to(message, "Không tìm thấy file video hợp lệ.")
+            return
+
+        try:
+            # Gửi thẳng vào nhóm VIP, hoàn toàn sạch không dính chữ Forwarded
+            bot.send_video(
+                chat_id=VIP_CHAT_ID,
+                video=file_id,
+                caption=message.caption or None,
+                supports_streaming=True,
+                timeout=300,
             )
-        else:
-            bot.reply_to(message, "Không tìm thấy file video hợp lệ trong tin nhắn này.")
+            bot.reply_to(message, "✅ Đã tự động đẩy video sạch lên nhóm VIP thành công!")
+        except Exception as e:
+            bot.reply_to(message, f"❌ Lỗi khi gửi vào nhóm VIP (Kiểm tra lại quyền admin của bot trong nhóm): {e}")
 
     return bot
 
 
 def main() -> None:
     bot = build_bot()
-    logger.info("Bot đang chạy ở chế độ polling...")
+    logger.info("Bot đang chạy ở chế độ polling tự động đẩy video...")
     bot.infinity_polling(skip_pending=False)
 
 
