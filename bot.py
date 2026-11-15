@@ -112,19 +112,30 @@ def build_bot() -> telebot.TeleBot:
                 timeout=300,
             )
 
-    @bot.message_handler(content_types=["video"])
+    # Đã mở rộng để bắt cả video thường, video nén (document) và mọi loại file media chuyển tiếp
+    @bot.message_handler(content_types=["video", "document", "animation"])
     def handle_video_upload(message: telebot.types.Message) -> None:
-        if message.chat.type != "private" or message.video is None:
+        if message.chat.type != "private":
             return
-        # Khi em gửi video vào chat riêng của bot, bot sẽ trả về file_id sạch
-        # Giúp em lấy mã để thêm vào kho hoặc gửi lại vào nhóm mà không bị dính chữ chuyển tiếp (forward)
-        bot.reply_to(
-            message,
-            "✅ Đã nhận video thành công (Sạch 100% không dính nguồn):\n\n"
-            f"`{message.video.file_id}`\n\n"
-            "Sao chép đoạn mã trên vào phần VIDEO_DATABASE trong file bot.py nhé!",
-            parse_mode="Markdown"
-        )
+            
+        file_id = None
+        if message.video:
+            file_id = message.video.file_id
+        elif message.document:
+            file_id = message.document.file_id
+        elif message.animation:
+            file_id = message.animation.file_id
+
+        if file_id:
+            bot.reply_to(
+                message,
+                "✅ Đã lấy được mã `file_id` (Sạch 100% không dính nguồn):\n\n"
+                f"`{file_id}`\n\n"
+                "Sao chép mã này cho vào file `bot.py` nhé!",
+                parse_mode="Markdown"
+            )
+        else:
+            bot.reply_to(message, "Không tìm thấy file video hợp lệ trong tin nhắn này.")
 
     return bot
 
