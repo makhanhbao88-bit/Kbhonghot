@@ -35,9 +35,9 @@ threading.Thread(target=start_dummy_server, daemon=True).start()
 TELEGRAM_BOT_TOKEN = "9015116230:AAFdK09k3vOv9tuccDRBXaANCb4czFozZx8"
 GEMINI_API_KEY = "AQ.Ab8RN6LD6GGVhuR00Rz9Nnu8xX6xDNoJr1kHNV3Ff9qD7gt6WQ"
 
-# Cấu hình Google Gemini chính thức
+# Cấu hình Google Gemini chuẩn cho dự án Google Cloud
 genai.configure(api_key=GEMINI_API_KEY)
-model = genai.GenerativeModel("gemini-1.5-flash")
+model = genai.GenerativeModel("gemini-pro")
 
 logging.basicConfig(
     level=logging.INFO,
