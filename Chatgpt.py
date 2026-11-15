@@ -1,9 +1,10 @@
+import base64
 import logging
 import os
 import threading
 from http.server import BaseHTTPRequestHandler, HTTPServer
 import time
-import google.generativeai as genai
+import requests
 import telebot
 import yt_dlp
 
@@ -33,15 +34,65 @@ threading.Thread(target=start_dummy_server, daemon=True).start()
 # ---------------------------------------------------------
 
 TELEGRAM_BOT_TOKEN = "9015116230:AAFdK09k3vOv9tuccDRBXaANCb4czFozZx8"
-GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "AQ.Ab8RN6LD6GGVhuR00Rz9Nnu8xX6xDNoJr1kHNV3Ff9qD7gt6WQ")
-
-genai.configure(api_key=GEMINI_API_KEY)
+GEMINI_API_KEY = "AQ.Ab8RN6LD6GGVhuR00Rz9Nnu8xX6xDNoJr1kHNV3Ff9qD7gt6WQ"
 
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s %(levelname)s %(name)s: %(message)s",
 )
 logger = logging.getLogger("utility-bot")
+
+
+def analyze_video_with_gemini(video_path: str) -> str:
+  url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent"
+  headers = {
+      "Authorization": f"Bearer {GEMINI_API_KEY}",
+      "Content-Type": "application/json"
+  }
+
+  try:
+    with open(video_path, "rb") as f:
+      video_bytes = f.read()
+    video_base64 = base64.b64encode(video_bytes).decode("utf-8")
+
+    data = {
+        "contents": [{
+            "parts": [
+                {
+                    "inline_data": {
+                        "mime_type": "video/mp4",
+                        "data": video_base64
+                    }
+                },
+                {
+                    "text": (
+                        "Bạn là chuyên gia kiểm duyệt chính sách an toàn của TikTok."
+                        " Hãy phân tích video này dưới góc độ thuật toán và Tiêu chuẩn"
+                        " cộng đồng TikTok (đặc biệt cho kênh Affiliate):\n1."
+                        " **Mức độ rủi ro:** (Thấp / Trung bình / Cao)\n2."
+                        " **Các lỗi có thể vi phạm:** (Hở hang, điều hướng sđt/zalo,"
+                        " thổi phồng công dụng, dính logo lạ...)\n3. **Lý do"
+                        " chi tiết:** Phân tích cụ thể.\n4. **Hướng dẫn chỉnh"
+                        " sửa:** Cần cắt bỏ, che hoặc sửa thế nào cho an toàn."
+                    )
+                }
+            ]
+        }]
+    }
+
+    response = requests.post(url, headers=headers, json=data, timeout=60)
+    res_json = response.json()
+
+    if "candidates" in res_json and len(res_json["candidates"]) > 0:
+      return res_json["candidates"][0]["content"]["parts"][0]["text"]
+    elif "error" in res_json:
+      logger.error(f"Gemini API Error: {res_json['error']}")
+      return f"Lỗi từ Gemini API: {res_json['error'].get('message', 'Không xác định')}"
+    
+    return "Không nhận được phản hồi phân tích từ AI."
+  except Exception as e:
+    logger.error(f"Lỗi gọi Gemini REST API: {e}")
+    return f"Lỗi hệ thống khi phân tích video: {str(e)}"
 
 
 def build_bot() -> telebot.TeleBot:
@@ -52,7 +103,7 @@ def build_bot() -> telebot.TeleBot:
     welcome_text = (
         "🤖 **Bot Tiện Ích Sáng Tạo Nội Dung & Affiliate TikTok**\n\n"
         "🎬 **Tải Video / MP3:**\n"
-        "• Gửi link TikTok, YouTube, Facebook để tải video không giới hạn.\n"
+        "• Gửi link TikTok, YouTube, Facebook để tải video.\n"
         "• Gửi link kèm chữ `mp3` để tách nhạc.\n\n"
         "🛡️ **Kiểm tra vi phạm trước khi đăng:**\n"
         "• Gửi file video trực tiếp vào bot để AI phân tích rủi ro, chỉ ra lỗi và hướng dẫn sửa.\n\n"
@@ -85,9 +136,7 @@ def build_bot() -> telebot.TeleBot:
     
     video_path = "downloads"
     os.makedirs(video_path, exist_ok=True)
-    
     local_video_path = None
-    video_file = None
 
     try:
       if message.video:
@@ -106,27 +155,11 @@ def build_bot() -> telebot.TeleBot:
 
       bot.send_chat_action(message.chat.id, "typing")
       
-      video_file = genai.upload_file(path=local_video_path)
-      
-      while video_file.state.name == "PROCESSING":
-        time.sleep(2)
-        video_file = genai.get_file(video_file.name)
-
-      prompt = (
-          "Bạn là một chuyên gia kiểm duyệt nội dung và chính sách an toàn của TikTok. "
-          "Hãy phân tích video này dưới góc độ thuật toán và Tiêu chuẩn cộng đồng TikTok (đặc biệt cho kênh Affiliate). "
-          "Hãy đưa ra đánh giá theo cấu trúc sau:\n"
-          "1. **Mức độ rủi ro:** (Thấp / Trung bình / Cao)\n"
-          "2. **Các lỗi có thể vi phạm:** (Ví dụ: hở hang, điều hướng sđt/zalo, thổi phồng công dụng sản phẩm, dính logo lạ, bản quyền, v.v.)\n"
-          "3. **Lý do chi tiết:** Phân tích cụ thể đoạn nào có vấn đề.\n"
-          "4. **Hướng dẫn chỉnh sửa:** Cần cắt bỏ, che hoặc sửa thế nào để an toàn 100% trước khi đăng."
-      )
-
-      analysis_model = genai.GenerativeModel("gemini-1.5-flash")
-      response = analysis_model.generate_content([video_file, prompt])
+      # Gọi hàm phân tích video qua REST API
+      analysis_result = analyze_video_with_gemini(local_video_path)
       
       bot.edit_message_text(
-          f"📊 **KẾT QUẢ KIỂM TRA VIDEO (AI SCANNER)**\n\n{response.text}",
+          f"📊 **KẾT QUẢ KIỂM TRA VIDEO (AI SCANNER)**\n\n{analysis_result}",
           message.chat.id,
           sent_msg.message_id,
           parse_mode="Markdown"
@@ -144,8 +177,6 @@ def build_bot() -> telebot.TeleBot:
         pass
 
     try:
-      if video_file:
-        genai.delete_file(video_file.name)
       if local_video_path and os.path.exists(local_video_path):
         os.remove(local_video_path)
     except Exception:
