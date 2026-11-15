@@ -43,33 +43,46 @@ logging.basicConfig(
 )
 logger = logging.getLogger("telegram-video-bot")
 
-# Hàng đợi lưu trữ video chờ gửi để chống lỗi 429
+# Hàng đợi lưu trữ file_id chờ gửi
 video_queue = queue.Queue()
 bot_instance = None
 
 def worker():
-    """Luồng ngầm tự động lấy video trong hàng đợi ra gửi từ từ"""
+    """Luồng ngầm xử lý hàng đợi cực kỳ thông minh, tự động né lỗi 429"""
     while True:
         item = video_queue.get()
         if item is None:
             break
-        message, file_id = item
-        try:
-            bot_instance.send_video(
-                chat_id=VIP_CHAT_ID,
-                video=file_id,
-                caption=None, 
-                supports_streaming=True,
-                timeout=300,
-            )
-            bot_instance.reply_to(message, "✅ Đã đẩy video sạch lên nhóm VIP!")
-        except Exception as e:
-            bot_instance.reply_to(message, f"❌ Lỗi khi gửi: {e}")
-        finally:
-            video_queue.task_done()
-            time.sleep(1.5) # Nghỉ 1.5 giây giữa các video để Telegram không phạt
+        file_id = item
+        
+        success = False
+        retries = 3
+        while retries > 0 and not success:
+            try:
+                bot_instance.send_video(
+                    chat_id=VIP_CHAT_ID,
+                    video=file_id,
+                    caption=None, 
+                    supports_streaming=True,
+                    timeout=60,
+                )
+                success = True
+                time.sleep(1.2) # Nghỉ nhẹ 1.2 giây giữa mỗi video
+            except Exception as e:
+                err_str = str(e)
+                # Nếu dính lỗi 429 (Too Many Requests), tự động lấy số giây Telegram bắt chờ để ngủ đúng giờ đó
+                if "429" in err_str or "Too Many Requests" in err_str:
+                    match = re.search(r"retry after (\d+)", err_str, re.IGNORECASE)
+                    sleep_time = int(match.group(1)) if match else 15
+                    logger.warning(f"Telegram giới hạn tốc độ. Bot tự động tạm dừng {sleep_time} giây...")
+                    time.sleep(sleep_time)
+                    retries -= 1
+                else:
+                    logger.error(f"Lỗi gửi video: {e}")
+                    break
+        video_queue.task_done()
 
-# Chạy worker ngầm
+# Chạy luồng ngầm xử lý
 threading.Thread(target=worker, daemon=True).start()
 
 
@@ -85,9 +98,9 @@ def build_bot() -> telebot.TeleBot:
 
     @bot.message_handler(commands=["start"])
     def handle_start(message: telebot.types.Message) -> None:
-        bot.reply_to(message, "Bot tự động chuyển video sạch đang chạy ở chế độ Hàng đợi thông minh.")
+        bot.reply_to(message, "Bot tự động chuyển video sạch đang chạy ở chế độ Siêu tốc độ & Chống tràn.")
 
-    # BẮT VIDEO VÀ ĐẨY VÀO HÀNG ĐỢI
+    # BẮT VIDEO VÀ ĐẨY VÀO HÀNG ĐỢI NGAY LẬP TỨC (KHÔNG SPAM CHAT)
     @bot.message_handler(content_types=["video", "document", "animation"])
     def handle_video_auto_forward(message: telebot.types.Message) -> None:
         if message.chat.type != "private":
@@ -102,20 +115,18 @@ def build_bot() -> telebot.TeleBot:
             file_id = message.animation.file_id
 
         if not file_id:
-            bot.reply_to(message, "Không tìm thấy file video hợp lệ.")
             return
 
-        # Cho video vào hàng đợi, bot sẽ tự xử lý lần lượt không lo quá tải
-        video_queue.put((message, file_id))
-        bot.reply_to(message, "⏳ Đã xếp vào hàng chờ gửi lên nhóm VIP...")
+        # Đưa vào hàng chờ xử lý ngầm, không làm phiền khung chat
+        video_queue.put(file_id)
 
     return bot
 
 
 def main() -> None:
     bot = build_bot()
-    logger.info("Bot đang chạy ở chế độ polling với hàng đợi chống tràn...")
-    bot.infinity_polling(skip_pending=False)
+    logger.info("Bot đang chạy ở chế độ hàng đợi thông minh không bao giờ đơ...")
+    bot.infinity_polling(skip_pending=True)
 
 
 if __name__ == "__main__":
