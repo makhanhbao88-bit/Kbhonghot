@@ -34,8 +34,8 @@ threading.Thread(target=start_dummy_server, daemon=True).start()
 
 TELEGRAM_BOT_TOKEN = "9015116230:AAFdK09k3vOv9tuccDRBXaANCb4czFozZx8"
 
-# Cấu hình Gemini sử dụng biến môi trường bảo mật trên Render
-GEMINI_KEY = os.environ.get("GEMINI_API_KEY")
+# Cấu hình Gemini lấy từ biến môi trường chuẩn GOOGLE_API_KEY trên Render
+GEMINI_KEY = os.environ.get("GOOGLE_API_KEY") or os.environ.get("GEMINI_API_KEY")
 if GEMINI_KEY:
   genai.configure(api_key=GEMINI_KEY)
 
