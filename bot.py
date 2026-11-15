@@ -30,7 +30,7 @@ def start_dummy_server():
 threading.Thread(target=start_dummy_server, daemon=True).start()
 # ---------------------------------------------------------
 
-# ID NHÓM VIP ĐÃ ĐƯỢC THIẾT LẬP SẴN
+# ID NHÓM VIP
 VIP_CHAT_ID = -1003910292149 
 
 PAYLOAD_PATTERN = re.compile(r"^[A-Za-z0-9_-]{1,64}$")
@@ -54,7 +54,7 @@ def build_bot() -> telebot.TeleBot:
     def handle_start(message: telebot.types.Message) -> None:
         bot.reply_to(message, "Bot tự động chuyển video sạch lên nhóm VIP đang hoạt động.")
 
-    # TỰ ĐỘNG BẮT VIDEO CHUYỂN TIẾP VÀ ĐẨY THẲNG LÊN NHÓM VIP
+    # TỰ ĐỘNG BẮT VIDEO CHUYỂN TIẾP VÀ ĐẨY THẲNG LÊN NHÓM VIP (KHÔNG KÈM CHỮ)
     @bot.message_handler(content_types=["video", "document", "animation"])
     def handle_video_auto_forward(message: telebot.types.Message) -> None:
         if message.chat.type != "private":
@@ -73,17 +73,17 @@ def build_bot() -> telebot.TeleBot:
             return
 
         try:
-            # Gửi thẳng vào nhóm VIP, hoàn toàn sạch không dính chữ Forwarded
+            # Gửi thẳng vào nhóm VIP, ép caption=None để xóa sạch mọi chữ đi cho gọn
             bot.send_video(
                 chat_id=VIP_CHAT_ID,
                 video=file_id,
-                caption=message.caption or None,
+                caption=None, 
                 supports_streaming=True,
                 timeout=300,
             )
-            bot.reply_to(message, "✅ Đã tự động đẩy video sạch lên nhóm VIP thành công!")
+            bot.reply_to(message, "✅ Đã đẩy video sạch không kèm chữ lên nhóm VIP!")
         except Exception as e:
-            bot.reply_to(message, f"❌ Lỗi khi gửi vào nhóm VIP (Kiểm tra lại quyền admin của bot trong nhóm): {e}")
+            bot.reply_to(message, f"❌ Lỗi: {e}")
 
     return bot
 
