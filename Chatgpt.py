@@ -3,6 +3,7 @@ import os
 import threading
 from http.server import BaseHTTPRequestHandler, HTTPServer
 import time
+import google.generativeai as genai
 import telebot
 import yt_dlp
 
@@ -32,6 +33,10 @@ threading.Thread(target=start_dummy_server, daemon=True).start()
 # ---------------------------------------------------------
 
 TELEGRAM_BOT_TOKEN = "9015116230:AAFdK09k3vOv9tuccDRBXaANCb4czFozZx8"
+# Tận dụng Gemini API key nếu có để làm tính năng kiểm tra video thông minh
+GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "AQ.Ab8RN6LD6GGVhuR00Rz9Nnu8xX6xDNoJr1kHNV3Ff9qD7gt6WQ")
+
+genai.configure(api_key=GEMINI_API_KEY)
 
 logging.basicConfig(
     level=logging.INFO,
@@ -46,12 +51,14 @@ def build_bot() -> telebot.TeleBot:
   @bot.message_handler(commands=["start", "help"])
   def handle_start(message: telebot.types.Message) -> None:
     welcome_text = (
-        "🤖 **Bot Tiện Ích Sáng Tạo Nội Dung & Tải Xuống**\n\n"
+        "🤖 **Bot Tiện Ích Sáng Tạo Nội Dung & Affiliate TikTok**\n\n"
         "🎬 **Tải Video / MP3:**\n"
-        "• Gửi link TikTok, YouTube, Facebook để tải video.\n"
-        "• Gửi link kèm chữ `mp3` ở cuối để tách nhạc MP3 (Ví dụ: `link_youtube mp3`).\n\n"
-        "🛡️ **Quy tắc & Tiêu chuẩn TikTok:**\n"
-        "• Gõ lệnh `/rules` hoặc `/luat` để xem cẩm nang né gậy, chống vi phạm nguyên tắc cộng đồng khi làm affiliate."
+        "• Gửi link TikTok, YouTube, Facebook để tải video không giới hạn.\n"
+        "• Gửi link kèm chữ `mp3` để tách nhạc.\n\n"
+        "🛡️ **Kiểm tra vi phạm trước khi đăng:**\n"
+        "• Gửi file video trực tiếp vào bot kèm chữ `check` để AI phân tích rủi ro, chỉ ra lỗi và hướng dẫn sửa.\n\n"
+        "📜 **Cẩm nang TikTok:**\n"
+        "• Gõ `/rules` để xem danh sách hành vi cấm."
     )
     bot.reply_to(message, welcome_text, parse_mode="Markdown")
 
@@ -60,23 +67,81 @@ def build_bot() -> telebot.TeleBot:
     rules_text = (
         "🛡️ **CẨM NANG NÉ TRÁNH VI PHẠM TIKTOK (AFFILIATE)**\n\n"
         "**1. Gian lận thương mại & Điều hướng:**\n"
-        "• Không điều hướng ra nền tảng khác (zalo, sđt, link bio, v.v.).\n"
-        "• Không thổi phồng công dụng sản phẩm (mỹ phẩm, TPCN tuyệt đối tránh từ chữa khỏi, giảm cân siêu tốc).\n"
-        "• Không bán hàng giả, hàng kém chất lượng, mập mờ nguồn gốc.\n\n"
+        "• Không điều hướng ra nền tảng khác (zalo, sđt, link bio).\n"
+        "• Không thổi phồng công dụng sản phẩm (mỹ phẩm, TPCN tránh từ 'chữa khỏi', 'giảm cân thần tốc').\n"
+        "• Không bán hàng giả, hàng kém chất lượng.\n\n"
         "**2. Bản quyền & Nội dung rác (Unoriginal):**\n"
-        "• Không reup video thô nguyên bản; bắt buộc biên tập sáng tạo lại (cắt ghép, lồng tiếng, đổi góc nhìn).\n"
+        "• Không reup video thô; bắt buộc biên tập sáng tạo lại (cắt ghép, lồng tiếng, đổi góc nhìn).\n"
         "• Dùng kho nhạc thương mại của TikTok, tránh dính bản quyền âm thanh.\n"
         "• Không để lộ logo Douyin hoặc watermark mờ của bên thứ 3.\n\n"
-        "**3. An toàn & Hành vi nguy hiểm:**\n"
-        "• Tránh quay trẻ em thực hiện hành động nguy hiểm không có người lớn.\n"
-        "• Không xuất hiện vũ khí, chất kích thích, tệ nạn xã hội.\n\n"
-        "**4. Hình ảnh & Ngôn từ:**\n"
-        "• Không dùng từ ngữ thô tục, chửi thề, lăng mạ hoặc body shaming.\n"
-        "• Mặc đồ lịch sự, không hở hang phản cảm hoặc tạo góc quay gợi dục.\n\n"
-        "💡 *Mẹo thực chiến: Hãy hướng khách hàng về 'Góc trái màn hình' hoặc 'Giỏ hàng' một cách tự nhiên. Nếu bị quét nhầm, hãy bấm Kháng cáo ngay!*"
+        "**3. An toàn & Hình ảnh:**\n"
+        "• Mặc đồ lịch sự, không hở hang phản cảm.\n"
+        "• Không chứa nội dung bạo lực, vũ khí, chất kích thích.\n"
     )
     bot.reply_to(message, rules_text, parse_mode="Markdown")
 
+  # Xử lý khi người dùng tải video lên để kiểm tra lỗi
+  @bot.message_handler(content_types=["video"])
+  def handle_video_check(message: telebot.types.Message) -> None:
+    sent_msg = bot.reply_to(message, "🔍 Bot đang phân tích video của bạn để quét rủi ro vi phạm TikTok, chờ chút nhé...")
+    
+    video_path = "downloads"
+    os.makedirs(video_path, exist_ok=True)
+    
+    file_info = bot.get_file(message.video.file_id)
+    downloaded_file = bot.download_file(file_info.file_path)
+    
+    local_video_path = os.path.join(video_path, f"{message.video.file_id}.mp4")
+    with open(local_video_path, "wb") as f:
+      f.write(downloaded_file)
+
+    try:
+      # Tải file lên Google GenAI File API để phân tích video
+      bot.send_chat_action(message.chat.id, "typing")
+      video_file = genai.upload_file(path=local_video_path)
+      
+      # Đợi file sẵn sàng xử lý
+      while video_file.state.name == "PROCESSING":
+        time.sleep(2)
+        video_file = genai.get_file(video_file.name)
+
+      prompt = (
+          "Bạn là một chuyên gia kiểm duyệt nội dung và chính sách an toàn của TikTok. "
+          "Hãy phân tích video này dưới góc độ thuật toán và Tiêu chuẩn cộng đồng TikTok (đặc biệt cho kênh Affiliate). "
+          "Hãy đưa ra đánh giá theo cấu trúc sau:\n"
+          "1. **Mức độ rủi ro:** (Thấp / Trung bình / Cao)\n"
+          "2. **Các lỗi có thể vi phạm:** (Ví dụ: hở hang, điều hướng sđt/zalo, thổi phồng công dụng sản phẩm, dính logo lạ, bản quyền, v.v.)\n"
+          "3. **Lý do chi tiết:** Phân tích cụ thể đoạn nào có vấn đề.\n"
+          "4. **Hướng dẫn chỉnh sửa:** Cần cắt bỏ, che hoặc sửa thế nào để an toàn 100% trước khi đăng."
+      )
+
+      # Sử dụng model hỗ trợ multimodal (video) chuẩn
+      analysis_model = genai.GenerativeModel("gemini-1.5-flash")
+      response = analysis_model.generate_content([video_file, prompt])
+      
+      bot.edit_message_text(
+          f"📊 **KẾT QUẢ KIỂM TRA VIDEO (AI SCANNER)**\n\n{response.text}",
+          message.chat.id,
+          sent_msg.message_id,
+          parse_mode="Markdown"
+      )
+
+      # Xóa file trên Google cloud file storage và local
+      genai.delete_file(video_file.name)
+      if os.path.exists(local_video_path):
+        os.remove(local_video_path)
+
+    except Exception as e:
+      logger.error(f"Lỗi kiểm tra video: {e}")
+      bot.edit_message_text(
+          "❌ Không thể phân tích video này (video có thể quá nặng hoặc định dạng chưa hỗ trợ). Hãy đảm bảo video ngắn gọn dưới 50MB nhé!",
+          message.chat.id,
+          sent_msg.message_id
+      )
+      if os.path.exists(local_video_path):
+        os.remove(local_video_path)
+
+  # Xử lý link tải video/mp3 như bình thường
   @bot.message_handler(func=lambda message: True)
   def handle_link(message: telebot.types.Message) -> None:
     if message.chat.type != "private":
@@ -84,7 +149,7 @@ def build_bot() -> telebot.TeleBot:
 
     text = message.text
     if not text or not "http" in text:
-      bot.reply_to(message, "⚠️ Vui lòng gửi một đường dẫn (link) hợp lệ hoặc gõ `/rules` để xem cẩm nang TikTok nhé!")
+      bot.reply_to(message, "⚠️ Vui lòng gửi link hợp lệ, gửi video để kiểm tra vi phạm, hoặc gõ `/rules` để xem luật TikTok nhé!")
       return
 
     is_mp3 = "mp3" in text.lower()
@@ -183,7 +248,7 @@ def main() -> None:
   except Exception:
     pass
 
-  logger.info("Bot đang chạy mượt mà...")
+  logger.info("Bot đa năng đang chạy mượt mà...")
 
   while True:
     try:
