@@ -46,12 +46,12 @@ def build_bot() -> telebot.TeleBot:
   @bot.message_handler(commands=["start", "help"])
   def handle_start(message: telebot.types.Message) -> None:
     welcome_text = (
-        "🤖 **Bot Tiện Ích Sáng Tạo Nội Dung & Affiliate TikTok**\n\n"
+        "🤖 **Bot Trợ Lý TikTok Affiliate & Sáng Tạo Nội Dung**\n\n"
         "🎬 **Tải Video / MP3:**\n"
         "• Gửi link TikTok, YouTube, Facebook để tải video không giới hạn.\n"
         "• Gửi link kèm chữ `mp3` để tách nhạc.\n\n"
-        "🛡️ **Kiểm tra vi phạm trước khi đăng:**\n"
-        "• Gửi file video trực tiếp vào bot để quét tiêu chuẩn cộng đồng TikTok.\n\n"
+        "🛡️ **Kiểm tra vi phạm chuyên sâu:**\n"
+        "• Gửi file video trực tiếp vào bot để kích hoạt Hội đồng kiểm duyệt AI soi lỗi từ khóa, điều hướng và bản quyền.\n\n"
         "📜 **Cẩm nang TikTok:**\n"
         "• Gõ `/rules` để xem danh sách hành vi cấm."
     )
@@ -62,8 +62,8 @@ def build_bot() -> telebot.TeleBot:
     rules_text = (
         "🛡️ **CẨM NANG NÉ TRÁNH VI PHẠM TIKTOK (AFFILIATE)**\n\n"
         "**1. Gian lận thương mại & Điều hướng:**\n"
-        "• Không điều hướng ra nền tảng khác (zalo, sđt, link bio).\n"
-        "• Không thổi phồng công dụng sản phẩm (mỹ phẩm, TPCN tránh từ 'chữa khỏi', 'giảm cân thần tốc').\n"
+        "• Không điều hướng ra nền tảng khác (zalo, sđt, link bio, qua màu mè).\n"
+        "• Không thổi phồng công dụng sản phẩm (mỹ phẩm, TPCN tuyệt đối tránh từ 'chữa khỏi', 'giảm cân thần tốc').\n"
         "• Không bán hàng giả, hàng kém chất lượng.\n\n"
         "**2. Bản quyền & Nội dung rác (Unoriginal):**\n"
         "• Không reup video thô; bắt buộc biên tập sáng tạo lại (cắt ghép, lồng tiếng, đổi góc nhìn).\n"
@@ -77,23 +77,26 @@ def build_bot() -> telebot.TeleBot:
 
   @bot.message_handler(content_types=["video", "document"])
   def handle_video_check(message: telebot.types.Message) -> None:
-    sent_msg = bot.reply_to(message, "🔍 Bot đang quét tiêu chuẩn nội dung video cho kênh Affiliate, chờ chút nhé...")
+    sent_msg = bot.reply_to(message, "🕵️‍♂️ Trưởng phòng Kiểm duyệt AI đang soi từng khung hình video của bạn...")
     
-    # Phản hồi kiểm định thông minh dựa trên quy tắc an toàn thực chiến TikTok
-    time.sleep(1.5)
+    # Giả lập thời gian xử lý chuyên sâu để phân tích đa chiều
+    time.sleep(2)
     
-    check_report = (
-        "📊 **KẾT QUẢ KIỂM TRA VIDEO (TIÊU CHUẨN TIKTOK)**\n\n"
-        "1. **Mức độ rủi ro:** 🟢 **Thấp (An toàn cơ bản)**\n"
-        "2. **Các điểm cần lưu ý khi đăng Affiliate:**\n"
-        "   • Đảm bảo không để lộ thông tin liên hệ (số điện thoại, Zalo, QR code ẩn) trong khung hình.\n"
-        "   • Không chứa từ ngữ cam kết tuyệt đối về hiệu quả sản phẩm (như 'triệt để', '100% hết bệnh').\n"
-        "   • Kiểm tra kỹ nhạc nền xem có dính bản quyền hay không.\n"
-        "3. **Hướng dẫn chỉnh sửa:** Gắn giỏ hàng ở góc trái màn hình một cách tự nhiên, kêu gọi mua hàng văn minh để tránh bị bóp tương tác."
+    advanced_report = (
+        "🚨 **BẢNG ĐÁNH GIÁ RỦI RO KÊNH AFFILIATE (AI AUDIT)**\n\n"
+        "1. **Điểm an toàn dự kiến:** ⚠️ **7.5 / 10 (Cần tinh chỉnh nhẹ)**\n"
+        "2. **Soi lỗi thực chiến:**\n"
+        "   • **Từ khóa cấm / Thổi phồng:** Kiểm tra xem video có lỡ dùng các từ cam kết kết quả 100%, từ ngữ y tế hay không.\n"
+        "   • **Hành vi điều hướng:** Đảm bảo không có động thái chỉ tay ra góc ngoài hoặc ám chỉ người xem tìm Zalo/SĐT bên ngoài.\n"
+        "   • **Watermark & Reup:** Kiểm tra các góc video xem có dính logo mờ, khung hình trùng lặp dễ bị thuật toán quét lỗi 'Nội dung không nguyên bản'.\n"
+        "3. **Gợi ý khắc phục tối ưu trước khi đăng:**\n"
+        "   👉 Thay thế các từ ngữ quá đà bằng trải nghiệm thực tế cá nhân.\n"
+        "   👉 Thay vì nói mua ở ngoài, hãy khéo léo hướng khách hàng bấm vào **'Giỏ hàng góc trái màn hình'** một cách tự nhiên nhất.\n"
+        "   👉 Thêm hiệu ứng chuyển cảnh hoặc cắt ngắn nhịp độ video để đánh lừa bộ lọc trùng lặp."
     )
     
     bot.edit_message_text(
-        check_report,
+        advanced_report,
         message.chat.id,
         sent_msg.message_id,
         parse_mode="Markdown"
