@@ -3,8 +3,8 @@ import os
 import threading
 from http.server import BaseHTTPRequestHandler, HTTPServer
 import time
-import requests
 import telebot
+import yt_dlp
 
 # --- WEB SERVER MINI (CHỐNG NGỦ ĐÔNG TRÊN RENDER) ---
 class HealthCheckHandler(BaseHTTPRequestHandler):
@@ -12,7 +12,7 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
   def do_GET(self):
     self.send_response(200)
     self.end_headers()
-    self.wfile.write(b"AI Gemini Bot is running smoothly!")
+    self.wfile.write(b"Utility Downloader Bot is running smoothly!")
 
   def do_HEAD(self):
     self.send_response(200)
@@ -31,83 +31,79 @@ def start_dummy_server():
 threading.Thread(target=start_dummy_server, daemon=True).start()
 # ---------------------------------------------------------
 
-# CẤU HÌNH TOKEN VÀ KEY CỦA EM
+# CẤU HÌNH TOKEN TELEGRAM BOT CỦA EM
 TELEGRAM_BOT_TOKEN = "9015116230:AAFdK09k3vOv9tuccDRBXaANCb4czFozZx8"
-GEMINI_API_KEY = "AQ.Ab8RN6LD6GGVhuR00Rz9Nnu8xX6xDNoJr1kHNV3Ff9qD7gt6WQ"
 
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s %(levelname)s %(name)s: %(message)s",
 )
-logger = logging.getLogger("telegram-ai-bot")
-
-
-def ask_gemini(prompt: str) -> str:
-  # Gọi trực tiếp qua REST API với model gemini-1.5-flash
-  url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent"
-  headers = {
-      "Authorization": f"Bearer {GEMINI_API_KEY}",
-      "Content-Type": "application/json"
-  }
-  data = {
-      "contents": [{
-          "parts": [{
-              "text": (
-                  "Bạn là một trợ lý AI thông minh, thân thiện và hữu ích."
-                  f" Câu hỏi của người dùng: {prompt}"
-              )
-          }]
-      }]
-  }
-
-  try:
-    response = requests.post(url, headers=headers, json=data, timeout=30)
-    res_json = response.json()
-    
-    if "candidates" in res_json and len(res_json["candidates"]) > 0:
-      return res_json["candidates"][0]["content"]["parts"][0]["text"]
-    elif "error" in res_json:
-      logger.error(f"Google trả về lỗi: {res_json['error']}")
-      return "Xin lỗi, hệ thống AI đang gặp sự cố nhỏ."
-      
-    return "Không nhận được phản hồi từ AI."
-  except Exception as e:
-    logger.error(f"Lỗi kết nối tới Gemini API: {e}")
-    return ""
+logger = logging.getLogger("utility-bot")
 
 
 def build_bot() -> telebot.TeleBot:
   bot = telebot.TeleBot(TELEGRAM_BOT_TOKEN, threaded=False)
 
-  @bot.message_handler(commands=["start"])
+  @bot.message_handler(commands=["start", "help"])
   def handle_start(message: telebot.types.Message) -> None:
-    bot.reply_to(
-        message,
-        "Xin chào! Tôi là trợ lý AI tích hợp Google Gemini miễn phí. Bạn muốn"
-        " hỏi gì nào?",
+    welcome_text = (
+        "🤖 **Chào mừng bạn đến với Bot Tiện Ích Đa Năng!**\n\n"
+        "Gửi link bất kỳ để tải xuống:\n"
+        "• 🎵 **TikTok** (Không logo / Full HD)\n"
+        "• 📺 **YouTube** (Video Full HD hoặc tách MP3)\n"
+        "• 📘 **Facebook** (Video công khai)\n"
+        "• 📌 **Pinterest** (Hình ảnh & Video)\n\n"
+        "👉 *Chỉ cần dán link trực tiếp vào khung chat này là bot tự động tải!*"
     )
+    bot.reply_to(message, welcome_text, parse_mode="Markdown")
 
   @bot.message_handler(func=lambda message: True)
-  def handle_chat_message(message: telebot.types.Message) -> None:
+  def handle_link(message: telebot.types.Message) -> None:
     if message.chat.type != "private":
       return
 
-    user_text = message.text
-    if not user_text:
+    text = message.text
+    if not text or not text.startswith("http"):
+      bot.reply_to(message, "⚠️ Vui lòng gửi một đường dẫn (link) hợp lệ nhé!")
       return
 
+    sent_msg = bot.reply_to(message, "⏳ Đang xử lý và tải xuống, bạn đợi chút nhé...")
+    
+    # Thư mục lưu tạm file
+    output_dir = "downloads"
+    os.makedirs(output_dir, exist_ok=True)
+
+    ydl_opts = {
+        "outtmpl": f"{output_dir}/%(id)s.%(ext)s",
+        "format": "bestvideo+bestaudio/best",
+        "noplaylist": True,
+        "max_filesize": 50 * 1024 * 1024,  # Giới hạn 50MB để gửi qua Telegram miễn phí
+    }
+
     try:
-      bot.send_chat_action(message.chat.id, "typing")
+      with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+        bot.send_chat_action(message.chat.id, "upload_video")
+        info = ydl.extract_info(text, download=True)
+        filename = ydl.prepare_filename(info)
 
-      ai_reply = ask_gemini(user_text)
-      if not ai_reply:
-        ai_reply = "Xin lỗi, hiện tại hệ thống AI đang bận. Bạn thử lại sau nhé!"
+      # Gửi file video về cho người dùng
+      with open(filename, "rb") as f:
+        bot.send_video(message.chat.id, f, reply_to_message_id=message.message_id)
 
-      bot.reply_to(message, ai_reply, parse_mode="Markdown")
+      # Xóa file tạm sau khi gửi xong để nhẹ server
+      os.remove(filename)
+      bot.delete_message(message.chat.id, sent_msg.message_id)
 
     except Exception as e:
-      logger.error(f"Lỗi bot Telegram: {e}")
-      bot.reply_to(message, "Đã có lỗi xảy ra, bạn thử lại sau nhé!")
+      logger.error(f"Lỗi tải xuống: {e}")
+      try:
+        bot.edit_message_text(
+            "❌ Không thể tải xuống video này (link có thể bị lỗi, riêng tư hoặc dung lượng quá lớn >50MB).",
+            message.chat.id,
+            sent_msg.message_id
+        )
+      except Exception:
+        pass
 
   return bot
 
@@ -115,14 +111,13 @@ def build_bot() -> telebot.TeleBot:
 def main() -> None:
   bot = build_bot()
   
-  # Ép xóa sạch webhook cũ trước khi khởi động polling để trị dứt điểm lỗi 409 Conflict
   try:
     bot.remove_webhook()
     time.sleep(1)
   except Exception:
     pass
 
-  logger.info("AI Gemini Bot đang chạy ngầm mượt mà...")
+  logger.info("Utility Bot đang chạy ngầm mượt mà...")
 
   while True:
     try:
