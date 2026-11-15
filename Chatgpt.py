@@ -12,7 +12,7 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
   def do_GET(self):
     self.send_response(200)
     self.end_headers()
-    self.wfile.write(b"Utility Downloader Bot is running smoothly!")
+    self.wfile.write(b"Unlimited Downloader Bot is running smoothly!")
 
   def do_HEAD(self):
     self.send_response(200)
@@ -31,7 +31,6 @@ def start_dummy_server():
 threading.Thread(target=start_dummy_server, daemon=True).start()
 # ---------------------------------------------------------
 
-# CẤU HÌNH TOKEN TELEGRAM BOT CỦA EM
 TELEGRAM_BOT_TOKEN = "9015116230:AAFdK09k3vOv9tuccDRBXaANCb4czFozZx8"
 
 logging.basicConfig(
@@ -47,13 +46,10 @@ def build_bot() -> telebot.TeleBot:
   @bot.message_handler(commands=["start", "help"])
   def handle_start(message: telebot.types.Message) -> None:
     welcome_text = (
-        "🤖 **Chào mừng bạn đến với Bot Tiện Ích Đa Năng!**\n\n"
-        "Gửi link bất kỳ để tải xuống:\n"
-        "• 🎵 **TikTok** (Không logo / Full HD)\n"
-        "• 📺 **YouTube** (Video Full HD hoặc tách MP3)\n"
-        "• 📘 **Facebook** (Video công khai)\n"
-        "• 📌 **Pinterest** (Hình ảnh & Video)\n\n"
-        "👉 *Chỉ cần dán link trực tiếp vào khung chat này là bot tự động tải!*"
+        "🚀 **Bot Tải Video Không Giới Hạn**\n\n"
+        "Gửi link TikTok, YouTube, Facebook, Pinterest bất kỳ:\n"
+        "• Dưới 50MB: Bot gửi video trực tiếp.\n"
+        "• Trên 50MB (video nặng): Bot cung cấp link tải trực tiếp tốc độ cao ngay lập tức!\n"
     )
     bot.reply_to(message, welcome_text, parse_mode="Markdown")
 
@@ -67,43 +63,62 @@ def build_bot() -> telebot.TeleBot:
       bot.reply_to(message, "⚠️ Vui lòng gửi một đường dẫn (link) hợp lệ nhé!")
       return
 
-    sent_msg = bot.reply_to(message, "⏳ Đang xử lý và tải xuống, bạn đợi chút nhé...")
+    sent_msg = bot.reply_to(message, "⏳ Đang xử lý video chất lượng cao, đợi chút nha...")
     
-    # Thư mục lưu tạm file
     output_dir = "downloads"
     os.makedirs(output_dir, exist_ok=True)
 
+    # Cấu hình tải chất lượng tốt nhất không giới hạn định dạng
     ydl_opts = {
         "outtmpl": f"{output_dir}/%(id)s.%(ext)s",
         "format": "bestvideo+bestaudio/best",
         "noplaylist": True,
-        "max_filesize": 50 * 1024 * 1024,  # Giới hạn 50MB để gửi qua Telegram miễn phí
     }
 
+    filename = None
     try:
       with yt_dlp.YoutubeDL(ydl_opts) as ydl:
         bot.send_chat_action(message.chat.id, "upload_video")
         info = ydl.extract_info(text, download=True)
         filename = ydl.prepare_filename(info)
 
-      # Gửi file video về cho người dùng
-      with open(filename, "rb") as f:
-        bot.send_video(message.chat.id, f, reply_to_message_id=message.message_id)
+      file_size_mb = os.path.getsize(filename) / (1024 * 1024)
+      
+      # Lấy domain render hiện tại để làm link tải nếu file quá nặng
+      render_url = os.environ.get("RENDER_EXTERNAL_URL", "https://chatgpt-5trb.onrender.com")
+      file_basename = os.path.basename(filename)
+      direct_link = f"{render_url}/downloads/{file_basename}"
 
-      # Xóa file tạm sau khi gửi xong để nhẹ server
-      os.remove(filename)
-      bot.delete_message(message.chat.id, sent_msg.message_id)
+      if file_size_mb > 50:
+        # Nếu nặng hơn 50MB, gửi link trực tiếp từ server Render của em
+        response_text = (
+            f"📦 **Video này khá nặng ({file_size_mb:.1f}MB):**\n\n"
+            f"Do Telegram giới hạn file gửi trực tiếp qua bot dưới 50MB, em bấm vào link dưới đây để tải trực tiếp bản Full HD về máy nhé:\n"
+            f"👉 [Tải Video Ngay ({file_size_mb:.1f}MB)]({direct_link})"
+        )
+        bot.edit_message_text(response_text, message.chat.id, sent_msg.message_id, parse_mode="Markdown")
+      else:
+        # Dưới 50MB gửi file trực tiếp bình thường
+        with open(filename, "rb") as f:
+          bot.send_video(message.chat.id, f, reply_to_message_id=message.message_id)
+        bot.delete_message(message.chat.id, sent_msg.message_id)
+        
+        # Xóa file ngay sau khi gửi để nhẹ server
+        if filename and os.path.exists(filename):
+          os.remove(filename)
 
     except Exception as e:
       logger.error(f"Lỗi tải xuống: {e}")
       try:
         bot.edit_message_text(
-            "❌ Không thể tải xuống video này (link có thể bị lỗi, riêng tư hoặc dung lượng quá lớn >50MB).",
+            "❌ Không thể tải xuống video này. Link có thể ở chế độ riêng tư hoặc bị lỗi.",
             message.chat.id,
             sent_msg.message_id
         )
       except Exception:
         pass
+      if filename and os.path.exists(filename):
+        os.remove(filename)
 
   return bot
 
@@ -117,7 +132,7 @@ def main() -> None:
   except Exception:
     pass
 
-  logger.info("Utility Bot đang chạy ngầm mượt mà...")
+  logger.info("Unlimited Bot đang chạy ngầm mượt mà...")
 
   while True:
     try:
