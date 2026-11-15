@@ -116,11 +116,14 @@ def build_bot() -> telebot.TeleBot:
     def handle_video_upload(message: telebot.types.Message) -> None:
         if message.chat.type != "private" or message.video is None:
             return
+        # Khi em gửi video vào chat riêng của bot, bot sẽ trả về file_id sạch
+        # Giúp em lấy mã để thêm vào kho hoặc gửi lại vào nhóm mà không bị dính chữ chuyển tiếp (forward)
         bot.reply_to(
             message,
-            "file_id của video:\n"
-            f"{message.video.file_id}\n\n"
-            "Sao chép mã này vào VIDEO_DATABASE trong bot.py.",
+            "✅ Đã nhận video thành công (Sạch 100% không dính nguồn):\n\n"
+            f"`{message.video.file_id}`\n\n"
+            "Sao chép đoạn mã trên vào phần VIDEO_DATABASE trong file bot.py nhé!",
+            parse_mode="Markdown"
         )
 
     return bot
