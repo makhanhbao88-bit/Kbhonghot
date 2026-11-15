@@ -56,7 +56,7 @@ def ask_gemini(prompt: str) -> str:
 
 
 def build_bot() -> telebot.TeleBot:
-  bot = telebot.TeleBot(TELEGRAM_BOT_TOKEN)
+  bot = telebot.TeleBot(TELEGRAM_BOT_TOKEN, threaded=False)
 
   try:
     bot.remove_webhook()
@@ -100,10 +100,16 @@ def main() -> None:
   bot = build_bot()
   logger.info("AI Gemini Bot đang chạy ngầm mượt mà...")
   
-  # Vòng lặp an toàn chống lỗi xung đột 409 Conflict
+  # Xóa sạch webhook cũ trước khi bắt đầu lắng nghe tin nhắn
+  try:
+    bot.remove_webhook()
+  except Exception:
+    pass
+
+  # Vòng lặp an toàn chạy đơn luồng chống xung đột 409
   while True:
     try:
-      bot.infinity_polling(timeout=60, long_polling_timeout=60)
+      bot.polling(none_stop=True, interval=3, timeout=30)
     except Exception as e:
       logger.error(f"Lỗi kết nối polling: {e}")
       time.sleep(5)
