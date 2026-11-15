@@ -11,39 +11,43 @@ if not TOKEN:
 bot = telebot.TeleBot(TOKEN)
 app = Flask(__name__)
 
-# Trang chủ giả lập để Render ping và thấy port mở
+# ID nhóm VIP của bạn
+VIP_CHAT_ID = -1003910292149 
+
 @app.route('/')
 def home():
     return "Bot is running successfully!"
 
-# Xử lý lệnh /start trên Telegram
+# Xử lý lệnh /start
 @bot.message_handler(commands=['start'])
 def handle_start(message):
-    user_name = message.from_user.first_name or "bạn"
-    bot.reply_to(message, f"Xin chào {user_name}! Bot đã hoạt động ngon lành trên Render rồi nhé 🚀")
+    bot.reply_to(message, "Bot đã sẵn sàng! Hãy chuyển tiếp (forward) bất kỳ video nào vào đây, mình sẽ tự động đăng ẩn danh lên nhóm VIP giúp bạn 🚀")
 
-# Xử lý lệnh /help
-@bot.message_handler(commands=['help'])
-def handle_help(message):
-    bot.reply_to(message, "Danh sách lệnh:\n/start - Bắt đầu\n/help - Hướng dẫn")
+# Bắt tất cả tin nhắn dạng VIDEO được gửi/chuyển tiếp tới bot
+@bot.message_handler(content_types=['video'])
+def handle_video(message):
+    try:
+        # Lấy file_id của video (bỏ qua caption cũ và tên người forward)
+        video_file_id = message.video.file_id
+        
+        # Gửi video sang nhóm VIP sạch sẽ, không caption, không tên
+        bot.send_video(chat_id=VIP_CHAT_ID, video=video_file_id)
+        
+        # Phản hồi nhẹ xác nhận cho bạn biết đã xong
+        bot.reply_to(message, "Đã đẩy video lên nhóm VIP ẩn danh thành công! ✅")
+        
+    except Exception as e:
+        bot.reply_to(message, f"Có lỗi xảy ra: {e}")
 
-# Phản hồi lại tin nhắn văn bản thông thường
-@bot.message_handler(func=lambda message: True)
-def handle_all(message):
-    bot.reply_to(message, f"Bạn vừa nói: {message.text}")
-
-# Hàm chạy bot Telegram ngầm
+# Hàm chạy bot ngầm bằng luồng riêng
 def run_bot():
     bot.infinity_polling()
 
 if __name__ == '__main__':
-    # Khởi động luồng chạy bot Telegram riêng biệt
     bot_thread = threading.Thread(target=run_bot)
     bot_thread.daemon = True
     bot_thread.start()
     
-    # Lấy cổng port do Render cấp tự động (hoặc mặc định là 10000)
+    # Lấy port từ Render (mặc định 10000) để qua mặt lỗi kiểm tra port
     port = int(os.environ.get("PORT", 10000))
-    
-    # Chạy Flask web server để qua mặt lỗi "No open ports detected" của Render
     app.run(host='0.0.0.0', port=port)
