@@ -30,8 +30,10 @@ def start_dummy_server():
 threading.Thread(target=start_dummy_server, daemon=True).start()
 # ---------------------------------------------------------
 
-# LẤY BIẾN AN TOÀN TỪ RENDER (TÊN SIÊU NGẮN KHÔNG LO TRÀN MÀN HÌNH)
-TELEGRAM_BOT_TOKEN = os.environ.get("TOKEN")
+# TELEGRAM TOKEN ĐỂ THẲNG VÀO ĐÂY CHO CHẮC ĂN (KHÔNG SỢ LỖI)
+TELEGRAM_BOT_TOKEN = "9015116230:AAFdK09k3vOv9tuccDRBXaANCb4czFozZx8"
+
+# OPENAI KEY LẤY AN TOÀN TỪ RENDER ĐỂ KHÔNG BỊ KHÓA
 OPENAI_API_KEY = os.environ.get("AI_KEY")
 
 client = OpenAI(api_key=OPENAI_API_KEY)
