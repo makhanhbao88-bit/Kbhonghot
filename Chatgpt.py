@@ -30,11 +30,11 @@ def start_dummy_server():
 threading.Thread(target=start_dummy_server, daemon=True).start()
 # ---------------------------------------------------------
 
-# CẤU HÌNH TOKEN VÀ API KEY MỚI NHẤT
-TELEGRAM_BOT_TOKEN = "9015116230:AAFdK09k3vOv9tuccDRBXaANCb4czFozZx8"
-OPENAI_API_KEY = "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"
+# LẤY TOKEN VÀ API KEY AN TOÀN TỪ HỆ THỐNG RENDER
+TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
+OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
 
-# Khởi tạo OpenAI client (Sử dụng model GPT-4o thông minh)
+# Khởi tạo OpenAI client
 client = OpenAI(api_key=OPENAI_API_KEY)
 
 logging.basicConfig(
@@ -47,7 +47,6 @@ logger = logging.getLogger("telegram-ai-bot")
 def build_bot() -> telebot.TeleBot:
   bot = telebot.TeleBot(TELEGRAM_BOT_TOKEN)
 
-  # Xóa webhook cũ đang bị kẹt (phòng hờ)
   try:
     bot.remove_webhook()
   except Exception:
@@ -61,21 +60,18 @@ def build_bot() -> telebot.TeleBot:
         " muốn hỏi gì hoặc cần tôi giúp gì nào?",
     )
 
-  # NHẬN TIN NHẮN CHAT VÀ GỬI CHO AI XỬ LÝ
   @bot.message_handler(func=lambda message: True)
   def handle_chat_message(message: telebot.types.Message) -> None:
     if message.chat.type != "private":
-      return  # Chỉ trả lời trong chat riêng tư
+      return
 
     user_text = message.text
     if not user_text:
       return
 
     try:
-      # Hiển thị trạng thái "đang soạn tin..."
       bot.send_chat_action(message.chat.id, "typing")
 
-      # Gọi API OpenAI GPT-4o
       response = client.chat.completions.create(
           model="gpt-4o",
           messages=[
