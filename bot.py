@@ -35,7 +35,7 @@ threading.Thread(target=start_dummy_server, daemon=True).start()
 # ID NHÓM VIP
 VIP_CHAT_ID = -1003910292149
 
-# MÃ TOKEN ĐÃ ĐƯỢC CẬP NHẬT TRỰC TIẾP
+# TOKEN CHUẨN ĐÃ ĐƯỢC TÍCH HỢP SẴN
 BOT_TOKEN = "9256145713:AAHgEal2tDARtTQZOVqw2gJuR9-d8B9nhvY"
 
 logging.basicConfig(
@@ -44,13 +44,13 @@ logging.basicConfig(
 )
 logger = logging.getLogger("telegram-video-bot")
 
-# Hàng đợi chứa file_id
+# Hàng đợi xử lý video tuần tự
 video_queue = queue.Queue()
 bot_instance = None
 
 
 def worker():
-  """Luồng ngầm xử lý hàng đợi tuần tự, né lỗi 429 tuyệt đối"""
+  """Luồng ngầm xử lý hàng đợi, chống nghẽn và né lỗi 429 tuyệt đối"""
   while True:
     file_id = video_queue.get()
     if file_id is None:
@@ -68,15 +68,11 @@ def worker():
             timeout=60,
         )
         success = True
-        time.sleep(1.2)  # Khoảng nghỉ an toàn giữa các video
+        time.sleep(1.2)  # Nghỉ an toàn giữa các video
       except Exception as e:
         err_str = str(e)
         if "429" in err_str or "Too Many Requests" in err_str:
-          match = (
-              re.search(r"retry after (\d+)", err_str, re.IGNORECASE)
-              if "re" in globals()
-              else None
-          )
+          match = re.search(r"retry after (\d+)", err_str, re.IGNORECASE)
           sleep_time = int(match.group(1)) if match else 15
           logger.warning(
               f"Bị giới hạn tốc độ, bot tạm nghỉ {sleep_time} giây..."
@@ -103,11 +99,9 @@ def build_bot() -> telebot.TeleBot:
 
   @bot.message_handler(commands=["start"])
   def handle_start(message: telebot.types.Message) -> None:
-    bot.reply_to(
-        message, "Bot tự động chuyển video sạch đang chạy ngầm siêu tốc."
-    )
+    bot.reply_to(message, "Bot tự động chuyển video đang chạy ngầm siêu tốc.")
 
-  # BẮT VIDEO VÀ ĐẨY THẲNG VÀO HÀNG ĐỢI (HOÀN TOÀN KHÔNG SPAM CHAT)
+  # BẮT VIDEO VÀ ĐẨY VÀO HÀNG ĐỢI
   @bot.message_handler(content_types=["video", "document", "animation"])
   def handle_video_auto_forward(message: telebot.types.Message) -> None:
     if message.chat.type != "private":
