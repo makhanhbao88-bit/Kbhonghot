@@ -46,8 +46,9 @@ def build_bot() -> telebot.TeleBot:
   @bot.message_handler(commands=["start", "help"])
   def handle_start(message: telebot.types.Message) -> None:
     welcome_text = (
-        "🤖 **Bot Tải Video Đã Sẵn Sàng!**\n\n"
-        "Gửi link TikTok, YouTube, Facebook, Pinterest vào đây để tải ngay nhé!"
+        "🤖 **Bot Tải Video & MP3 Đa Năng**\n\n"
+        "• **Tải Video:** Chỉ cần gửi link TikTok, YouTube, Facebook.\n"
+        "• **Tải MP3:** Gửi link kèm chữ `mp3` ở cuối (Ví dụ: `link_youtube mp3`)"
     )
     bot.reply_to(message, welcome_text, parse_mode="Markdown")
 
@@ -57,31 +58,59 @@ def build_bot() -> telebot.TeleBot:
       return
 
     text = message.text
-    if not text or not text.startswith("http"):
+    if not text or not "http" in text:
       bot.reply_to(message, "⚠️ Vui lòng gửi một đường dẫn (link) hợp lệ nhé!")
       return
 
-    sent_msg = bot.reply_to(message, "⏳ Đang kết nối lấy video, chờ chút nha...")
+    # Kiểm tra xem người dùng có muốn lấy MP3 không
+    is_mp3 = "mp3" in text.lower()
+    # Tách lấy link sạch (bỏ chữ mp3 đi nếu có)
+    clean_url = text.replace("mp3", "").replace("MP3", "").strip()
+
+    action_name = "tách file MP3 🎵" if is_mp3 else "tải video 🎬"
+    sent_msg = bot.reply_to(message, f"⏳ Đang {action_name}, chờ chút nha...")
     
     output_dir = "downloads"
     os.makedirs(output_dir, exist_ok=True)
 
-    # Cấu hình giả lập trình duyệt để TikTok không chặn IP Render
-    ydl_opts = {
-        "outtmpl": f"{output_dir}/%(id)s.%(ext)s",
-        "format": "best",
-        "noplaylist": True,
-        "http_headers": {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-        }
-    }
+    # Cấu hình yt-dlp cho video hoặc mp3
+    if is_mp3:
+      ydl_opts = {
+          "outtmpl": f"{output_dir}/%(id)s.%(ext)s",
+          "format": "bestaudio/best",
+          "postprocessors": [{
+              "key": "FFmpegExtractAudio",
+              "preferredcodec": "mp3",
+              "preferredquality": "192",
+          }],
+          "noplaylist": True,
+          "http_headers": {
+              "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+          }
+      }
+    else:
+      ydl_opts = {
+          "outtmpl": f"{output_dir}/%(id)s.%(ext)s",
+          "format": "best",
+          "noplaylist": True,
+          "http_headers": {
+              "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+          }
+      }
 
     filename = None
     try:
       with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-        bot.send_chat_action(message.chat.id, "upload_video")
-        info = ydl.extract_info(text, download=True)
+        if is_mp3:
+          bot.send_chat_action(message.chat.id, "upload_audio")
+        else:
+          bot.send_chat_action(message.chat.id, "upload_video")
+
+        info = ydl.extract_info(clean_url, download=True)
         filename = ydl.prepare_filename(info)
+        
+        if is_mp3:
+          filename = os.path.splitext(filename)[0] + ".mp3"
 
       file_size_mb = os.path.getsize(filename) / (1024 * 1024)
       render_url = os.environ.get("RENDER_EXTERNAL_URL", "https://chatgpt-5trb.onrender.com")
@@ -90,24 +119,28 @@ def build_bot() -> telebot.TeleBot:
 
       if file_size_mb > 50:
         response_text = (
-            f"📦 **Video nặng {file_size_mb:.1f}MB:**\n\n"
-            f"Do Telegram giới hạn file bot gửi trực tiếp dưới 50MB, em bấm vào link bên dưới để tải bản nét về máy nhé:\n"
-            f"👉 [Tải Video Ngay]({direct_link})"
+            f"📦 **File nặng {file_size_mb:.1f}MB:**\n\n"
+            f"Vượt quá giới hạn 50MB của Telegram Bot API. Em bấm vào link dưới đây để tải trực tiếp nhé:\n"
+            f"👉 [Tải File Ngay]({direct_link})"
         )
         bot.edit_message_text(response_text, message.chat.id, sent_msg.message_id, parse_mode="Markdown")
       else:
-        with open(filename, "rb") as f:
-          bot.send_video(message.chat.id, f, reply_to_message_id=message.message_id)
+        if is_mp3:
+          with open(filename, "rb") as f:
+            bot.send_audio(message.chat.id, f, reply_to_message_id=message.message_id)
+        else:
+          with open(filename, "rb") as f:
+            bot.send_video(message.chat.id, f, reply_to_message_id=message.message_id)
         bot.delete_message(message.chat.id, sent_msg.message_id)
 
       if filename and os.path.exists(filename):
         os.remove(filename)
 
     except Exception as e:
-      logger.error(f"Lỗi tải xuống: {e}")
+      logger.error(f"Lỗi xử lý: {e}")
       try:
         bot.edit_message_text(
-            "❌ Không thể tải video này. Hãy thử lại với link khác nhé!",
+            "❌ Không thể xử lý link này. Hãy thử lại với link khác nhé!",
             message.chat.id,
             sent_msg.message_id
         )
