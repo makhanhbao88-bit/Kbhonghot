@@ -2,7 +2,7 @@ import logging
 import os
 import threading
 from http.server import BaseHTTPRequestHandler, HTTPServer
-import requests
+import google.generativeai as genai
 import telebot
 
 # --- WEB SERVER MINI (CHỐNG NGỦ ĐÔNG TRÊN RENDER) ---
@@ -30,11 +30,13 @@ def start_dummy_server():
 threading.Thread(target=start_dummy_server, daemon=True).start()
 # ---------------------------------------------------------
 
-# TELEGRAM TOKEN
+# CẤU HÌNH TOKEN VÀ KEY
 TELEGRAM_BOT_TOKEN = "9015116230:AAFdK09k3vOv9tuccDRBXaANCb4czFozZx8"
+GEMINI_API_KEY = "AQ.Ab8RN6IZVQJDvhBVLXztG98DBarnSwbHejltX1uLrOBs0ymMLQ"
 
-# LẤY GEMINI API KEY AN TOÀN TỪ RENDER
-GEMINI_API_KEY = os.environ.get("GEMINI_KEY")
+# Cấu hình Google Gemini chính thức
+genai.configure(api_key=GEMINI_API_KEY)
+model = genai.GenerativeModel("gemini-1.5-flash")
 
 logging.basicConfig(
     level=logging.INFO,
@@ -44,24 +46,9 @@ logger = logging.getLogger("telegram-ai-bot")
 
 
 def ask_gemini(prompt: str) -> str:
-  url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={GEMINI_API_KEY}"
-  headers = {"Content-Type": "application/json"}
-  data = {
-      "contents": [{
-          "parts": [{
-              "text": (
-                  "Bạn là một trợ lý AI thông minh, thân thiện và hữu ích."
-                  f" Câu hỏi của người dùng: {prompt}"
-              )
-          }]
-      }]
-  }
-
   try:
-    response = requests.post(url, headers=headers, json=data, timeout=30)
-    res_json = response.json()
-    # Lấy câu trả lời từ cấu trúc JSON của Gemini
-    return res_json["candidates"][0]["content"]["parts"][0]["text"]
+    response = model.generate_content(prompt)
+    return response.text
   except Exception as e:
     logger.error(f"Lỗi gọi Gemini API: {e}")
     return ""
@@ -79,8 +66,8 @@ def build_bot() -> telebot.TeleBot:
   def handle_start(message: telebot.types.Message) -> None:
     bot.reply_to(
         message,
-        "Xin chào! Tôi là trợ lý AI thông minh tích hợp Google Gemini miễn"
-        " phí. Bạn muốn hỏi gì nào?",
+        "Xin chào! Tôi là trợ lý AI tích hợp Google Gemini miễn phí. Bạn muốn"
+        " hỏi gì nào?",
     )
 
   @bot.message_handler(func=lambda message: True)
@@ -102,7 +89,7 @@ def build_bot() -> telebot.TeleBot:
       bot.reply_to(message, ai_reply, parse_mode="Markdown")
 
     except Exception as e:
-      logger.error(f"Lỗi bot: {e}")
+      logger.error(f"Lỗi bot Telegram: {e}")
       bot.reply_to(message, "Đã có lỗi xảy ra, bạn thử lại sau nhé!")
 
   return bot
