@@ -1,131 +1,29 @@
-import logging
 import os
-import queue
-import re
-import threading
-import time
-from http.server import BaseHTTPRequestHandler, HTTPServer
 import telebot
 
-# --- WEB SERVER MINI (CHỐNG NGỦ ĐÔNG TRÊN RENDER) ---
-class HealthCheckHandler(BaseHTTPRequestHandler):
+# Lấy token an toàn từ biến môi trường của Render
+TOKEN = os.getenv('BOT_TOKEN')
 
-  def do_GET(self):
-    self.send_response(200)
-    self.end_headers()
-    self.wfile.write(b"Bot is running smoothly!")
+if not TOKEN:
+    raise ValueError("Lỗi: Chưa thiết lập biến môi trường BOT_TOKEN trên Render hoặc giá trị bị trống!")
 
-  def do_HEAD(self):
-    self.send_response(200)
-    self.end_headers()
+bot = telebot.TeleBot(TOKEN)
 
-  def log_message(self, format, *args):
-    pass
+@bot.message_handler(commands=['start'])
+def handle_start(message):
+    user_name = message.from_user.first_name or "bạn"
+    bot.reply_to(message, f"Xin chào {user_name}! Bot của bạn đã hoạt động mượt mà trên Render rồi nhé 🚀")
 
+@bot.message_handler(commands=['help'])
+def handle_help(message):
+    bot.reply_to(message, "Danh sách lệnh hỗ trợ:\n/start - Khởi động bot\n/help - Xem hướng dẫn")
 
-def start_dummy_server():
-  port = int(os.environ.get("PORT", 10000))
-  server = HTTPServer(("0.0.0.0", port), HealthCheckHandler)
-  server.serve_forever()
+@bot.message_handler(func=lambda message: True)
+def handle_all_messages(message):
+    # Trả lời lại bất kỳ tin nhắn nào người dùng gửi tới
+    bot.reply_to(message, f"Bạn vừa nói: {message.text}")
 
-
-threading.Thread(target=start_dummy_server, daemon=True).start()
-# ---------------------------------------------------------
-
-# ID NHÓM VIP
-VIP_CHAT_ID = -1003910292149
-
-# TOKEN CHUẨN ĐÃ ĐƯỢC TÍCH HỢP SẴN
-BOT_TOKEN = "9256145713:AAHgEal2tDARtTQZOVqw2gJuR9-d8B9nhvY"
-
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s %(levelname)s %(name)s: %(message)s",
-)
-logger = logging.getLogger("telegram-video-bot")
-
-# Hàng đợi xử lý video tuần tự
-video_queue = queue.Queue()
-bot_instance = None
-
-
-def worker():
-  """Luồng ngầm xử lý hàng đợi, chống nghẽn và né lỗi 429 tuyệt đối"""
-  while True:
-    file_id = video_queue.get()
-    if file_id is None:
-      break
-
-    success = False
-    retries = 3
-    while retries > 0 and not success:
-      try:
-        bot_instance.send_video(
-            chat_id=VIP_CHAT_ID,
-            video=file_id,
-            caption=None,
-            supports_streaming=True,
-            timeout=60,
-        )
-        success = True
-        time.sleep(1.2)  # Nghỉ an toàn giữa các video
-      except Exception as e:
-        err_str = str(e)
-        if "429" in err_str or "Too Many Requests" in err_str:
-          match = re.search(r"retry after (\d+)", err_str, re.IGNORECASE)
-          sleep_time = int(match.group(1)) if match else 15
-          logger.warning(
-              f"Bị giới hạn tốc độ, bot tạm nghỉ {sleep_time} giây..."
-          )
-          time.sleep(sleep_time)
-          retries -= 1
-        else:
-          logger.error(f"Lỗi gửi video: {e}")
-          break
-    video_queue.task_done()
-
-
-threading.Thread(target=worker, daemon=True).start()
-
-
-def build_bot() -> telebot.TeleBot:
-  global bot_instance
-  token = BOT_TOKEN.strip()
-  if not token:
-    raise RuntimeError("Chưa điền BOT_TOKEN vào code.")
-
-  bot = telebot.TeleBot(token)
-  bot_instance = bot
-
-  @bot.message_handler(commands=["start"])
-  def handle_start(message: telebot.types.Message) -> None:
-    bot.reply_to(message, "Bot tự động chuyển video đang chạy ngầm siêu tốc.")
-
-  # BẮT VIDEO VÀ ĐẨY VÀO HÀNG ĐỢI
-  @bot.message_handler(content_types=["video", "document", "animation"])
-  def handle_video_auto_forward(message: telebot.types.Message) -> None:
-    if message.chat.type != "private":
-      return
-
-    file_id = None
-    if message.video:
-      file_id = message.video.file_id
-    elif message.document:
-      file_id = message.document.file_id
-    elif message.animation:
-      file_id = message.animation.file_id
-
-    if file_id:
-      video_queue.put(file_id)
-
-  return bot
-
-
-def main() -> None:
-  bot = build_bot()
-  logger.info("Bot đang chạy ngầm mượt mà...")
-  bot.infinity_polling(skip_pending=True)
-
-
-if __name__ == "__main__":
-  main()
+if __name__ == '__main__':
+    print("Bot đang khởi động và bắt đầu lắng nghe...")
+    # Dùng infinity_polling để bot tự động kết nối lại khi mất mạng
+    bot.infinity_polling()
