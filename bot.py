@@ -35,8 +35,8 @@ threading.Thread(target=start_dummy_server, daemon=True).start()
 # ID NHÓM VIP
 VIP_CHAT_ID = -1003910292149
 
-# 👉 DÁN MÃ TOKEN CỦA BOT VÀO TRONG DẤU NHÁY KÉP DƯỚI ĐÂY:
-BOT_TOKEN = "DÁN_TOKEN_BOT_CỦA_EM_VÀO_ĐÂY"
+# MÃ TOKEN ĐÃ ĐƯỢC CẬP NHẬT TRỰC TIẾP
+BOT_TOKEN = "9256145713:AAHgEal2tDARtTQZOVqw2gJuR9-d8B9nhvY"
 
 logging.basicConfig(
     level=logging.INFO,
@@ -95,7 +95,7 @@ threading.Thread(target=worker, daemon=True).start()
 def build_bot() -> telebot.TeleBot:
   global bot_instance
   token = BOT_TOKEN.strip()
-  if not token or "DÁN_TOKEN" in token:
+  if not token:
     raise RuntimeError("Chưa điền BOT_TOKEN vào code.")
 
   bot = telebot.TeleBot(token)
