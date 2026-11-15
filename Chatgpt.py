@@ -31,9 +31,9 @@ def start_dummy_server():
 threading.Thread(target=start_dummy_server, daemon=True).start()
 # ---------------------------------------------------------
 
-# CẤU HÌNH TOKEN VÀ KEY TRỰC TIẾP
+# CẤU HÌNH TOKEN VÀ KEY CỦA EM
 TELEGRAM_BOT_TOKEN = "9015116230:AAFdK09k3vOv9tuccDRBXaANCb4czFozZx8"
-GEMINI_API_KEY = "AQ.Ab8RN6IZVQJDvhBVLXztG98DBarnSwbHejltX1uLrOBs0ymMLQ"
+GEMINI_API_KEY = "AQ.Ab8RN6LD6GGVhuR00Rz9Nnu8xX6xDNoJr1kHNV3Ff9qD7gt6WQ"
 
 # Cấu hình Google Gemini chính thức
 genai.configure(api_key=GEMINI_API_KEY)
@@ -57,11 +57,6 @@ def ask_gemini(prompt: str) -> str:
 
 def build_bot() -> telebot.TeleBot:
   bot = telebot.TeleBot(TELEGRAM_BOT_TOKEN, threaded=False)
-
-  try:
-    bot.remove_webhook()
-  except Exception:
-    pass
 
   @bot.message_handler(commands=["start"])
   def handle_start(message: telebot.types.Message) -> None:
@@ -100,13 +95,11 @@ def main() -> None:
   bot = build_bot()
   logger.info("AI Gemini Bot đang chạy ngầm mượt mà...")
   
-  # Xóa sạch webhook cũ trước khi bắt đầu lắng nghe tin nhắn
   try:
     bot.remove_webhook()
   except Exception:
     pass
 
-  # Vòng lặp an toàn chạy đơn luồng chống xung đột 409
   while True:
     try:
       bot.polling(none_stop=True, interval=3, timeout=30)
