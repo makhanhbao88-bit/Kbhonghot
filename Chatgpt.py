@@ -2,6 +2,7 @@ import logging
 import os
 import threading
 from http.server import BaseHTTPRequestHandler, HTTPServer
+import time
 import google.generativeai as genai
 import telebot
 
@@ -30,7 +31,7 @@ def start_dummy_server():
 threading.Thread(target=start_dummy_server, daemon=True).start()
 # ---------------------------------------------------------
 
-# CẤU HÌNH TOKEN VÀ KEY
+# CẤU HÌNH TOKEN VÀ KEY TRỰC TIẾP
 TELEGRAM_BOT_TOKEN = "9015116230:AAFdK09k3vOv9tuccDRBXaANCb4czFozZx8"
 GEMINI_API_KEY = "AQ.Ab8RN6IZVQJDvhBVLXztG98DBarnSwbHejltX1uLrOBs0ymMLQ"
 
@@ -98,7 +99,14 @@ def build_bot() -> telebot.TeleBot:
 def main() -> None:
   bot = build_bot()
   logger.info("AI Gemini Bot đang chạy ngầm mượt mà...")
-  bot.infinity_polling(skip_pending=True)
+  
+  # Vòng lặp an toàn chống lỗi xung đột 409 Conflict
+  while True:
+    try:
+      bot.infinity_polling(timeout=60, long_polling_timeout=60)
+    except Exception as e:
+      logger.error(f"Lỗi kết nối polling: {e}")
+      time.sleep(5)
 
 
 if __name__ == "__main__":
