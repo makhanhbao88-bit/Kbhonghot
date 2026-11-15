@@ -47,6 +47,12 @@ logger = logging.getLogger("telegram-ai-bot")
 def build_bot() -> telebot.TeleBot:
   bot = telebot.TeleBot(TELEGRAM_BOT_TOKEN)
 
+  # Xóa webhook cũ đang bị kẹt để tránh lỗi Conflict 409
+  try:
+    bot.remove_webhook()
+  except Exception:
+    pass
+
   @bot.message_handler(commands=["start"])
   def handle_start(message: telebot.types.Message) -> None:
     bot.reply_to(
