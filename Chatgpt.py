@@ -46,11 +46,36 @@ def build_bot() -> telebot.TeleBot:
   @bot.message_handler(commands=["start", "help"])
   def handle_start(message: telebot.types.Message) -> None:
     welcome_text = (
-        "🤖 **Bot Tải Video & MP3 Đa Năng**\n\n"
-        "• **Tải Video:** Chỉ cần gửi link TikTok, YouTube, Facebook.\n"
-        "• **Tải MP3:** Gửi link kèm chữ `mp3` ở cuối (Ví dụ: `link_youtube mp3`)"
+        "🤖 **Bot Tiện Ích Sáng Tạo Nội Dung & Tải Xuống**\n\n"
+        "🎬 **Tải Video / MP3:**\n"
+        "• Gửi link TikTok, YouTube, Facebook để tải video.\n"
+        "• Gửi link kèm chữ `mp3` ở cuối để tách nhạc MP3 (Ví dụ: `link_youtube mp3`).\n\n"
+        "🛡️ **Quy tắc & Tiêu chuẩn TikTok:**\n"
+        "• Gõ lệnh `/rules` hoặc `/luat` để xem cẩm nang né gậy, chống vi phạm nguyên tắc cộng đồng khi làm affiliate."
     )
     bot.reply_to(message, welcome_text, parse_mode="Markdown")
+
+  @bot.message_handler(commands=["rules", "luat"])
+  def handle_rules(message: telebot.types.Message) -> None:
+    rules_text = (
+        "🛡️ **CẨM NANG NÉ TRÁNH VI PHẠM TIKTOK (AFFILIATE)**\n\n"
+        "**1. Gian lận thương mại & Điều hướng:**\n"
+        "• Không điều hướng ra nền tảng khác (zalo, sđt, link bio, v.v.).\n"
+        "• Không thổi phồng công dụng sản phẩm (mỹ phẩm, TPCN tuyệt đối tránh từ chữa khỏi, giảm cân siêu tốc).\n"
+        "• Không bán hàng giả, hàng kém chất lượng, mập mờ nguồn gốc.\n\n"
+        "**2. Bản quyền & Nội dung rác (Unoriginal):**\n"
+        "• Không reup video thô nguyên bản; bắt buộc biên tập sáng tạo lại (cắt ghép, lồng tiếng, đổi góc nhìn).\n"
+        "• Dùng kho nhạc thương mại của TikTok, tránh dính bản quyền âm thanh.\n"
+        "• Không để lộ logo Douyin hoặc watermark mờ của bên thứ 3.\n\n"
+        "**3. An toàn & Hành vi nguy hiểm:**\n"
+        "• Tránh quay trẻ em thực hiện hành động nguy hiểm không có người lớn.\n"
+        "• Không xuất hiện vũ khí, chất kích thích, tệ nạn xã hội.\n\n"
+        "**4. Hình ảnh & Ngôn từ:**\n"
+        "• Không dùng từ ngữ thô tục, chửi thề, lăng mạ hoặc body shaming.\n"
+        "• Mặc đồ lịch sự, không hở hang phản cảm hoặc tạo góc quay gợi dục.\n\n"
+        "💡 *Mẹo thực chiến: Hãy hướng khách hàng về 'Góc trái màn hình' hoặc 'Giỏ hàng' một cách tự nhiên. Nếu bị quét nhầm, hãy bấm Kháng cáo ngay!*"
+    )
+    bot.reply_to(message, rules_text, parse_mode="Markdown")
 
   @bot.message_handler(func=lambda message: True)
   def handle_link(message: telebot.types.Message) -> None:
@@ -59,12 +84,10 @@ def build_bot() -> telebot.TeleBot:
 
     text = message.text
     if not text or not "http" in text:
-      bot.reply_to(message, "⚠️ Vui lòng gửi một đường dẫn (link) hợp lệ nhé!")
+      bot.reply_to(message, "⚠️ Vui lòng gửi một đường dẫn (link) hợp lệ hoặc gõ `/rules` để xem cẩm nang TikTok nhé!")
       return
 
-    # Kiểm tra xem người dùng có muốn lấy MP3 không
     is_mp3 = "mp3" in text.lower()
-    # Tách lấy link sạch (bỏ chữ mp3 đi nếu có)
     clean_url = text.replace("mp3", "").replace("MP3", "").strip()
 
     action_name = "tách file MP3 🎵" if is_mp3 else "tải video 🎬"
@@ -73,7 +96,6 @@ def build_bot() -> telebot.TeleBot:
     output_dir = "downloads"
     os.makedirs(output_dir, exist_ok=True)
 
-    # Cấu hình yt-dlp cho video hoặc mp3
     if is_mp3:
       ydl_opts = {
           "outtmpl": f"{output_dir}/%(id)s.%(ext)s",
