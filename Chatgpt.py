@@ -30,11 +30,10 @@ def start_dummy_server():
 threading.Thread(target=start_dummy_server, daemon=True).start()
 # ---------------------------------------------------------
 
-# LẤY TOKEN VÀ API KEY AN TOÀN TỪ HỆ THỐNG RENDER
-TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
-OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
+# LẤY BIẾN AN TOÀN TỪ RENDER (TÊN SIÊU NGẮN KHÔNG LO TRÀN MÀN HÌNH)
+TELEGRAM_BOT_TOKEN = os.environ.get("TOKEN")
+OPENAI_API_KEY = os.environ.get("AI_KEY")
 
-# Khởi tạo OpenAI client
 client = OpenAI(api_key=OPENAI_API_KEY)
 
 logging.basicConfig(
@@ -94,8 +93,7 @@ def build_bot() -> telebot.TeleBot:
       logger.error(f"Lỗi khi gọi OpenAI API: {e}")
       bot.reply_to(
           message,
-          "Xin lỗi, hiện tại hệ thống AI đang bận hoặc gặp sự cố nhỏ. Bạn thử"
-          " lại sau nhé!",
+          "Xin lỗi, hiện tại hệ thống AI đang bận. Bạn thử lại sau nhé!",
       )
 
   return bot
